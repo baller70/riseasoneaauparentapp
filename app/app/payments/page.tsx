@@ -2,11 +2,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { AppLayout } from '../../components/app-layout'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
+import { Checkbox } from '../../components/ui/checkbox'
 import { 
   Plus, 
   Search, 
@@ -16,41 +18,128 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  CreditCard,
+  BarChart3,
+  Mail,
+  RefreshCw,
+  Eye
 } from 'lucide-react'
 import Link from 'next/link'
-import { PaymentWithRelations } from '../../lib/types'
+import { PaymentWithRelations, PaymentStats, PaymentAnalytics } from '../../lib/types'
+
+// Dynamic import for charts
+// @ts-ignore
+const Recharts = dynamic(() => import('recharts'), { ssr: false, loading: () => <div>Loading chart...</div> })
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentWithRelations[]>([])
+  const [analytics, setAnalytics] = useState<PaymentAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedPayments, setSelectedPayments] = useState<string[]>([])
+  const [bulkOperating, setBulkOperating] = useState(false)
 
   useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        const response = await fetch('/api/payments')
-        if (response.ok) {
-          const data = await response.json()
-          setPayments(data)
-        }
-      } catch (error) {
-        console.error('Failed to fetch payments:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    fetchData()
+  }, [statusFilter])
 
-    fetchPayments()
-  }, [])
+  const fetchData = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') params.append('status', statusFilter)
+
+      const [paymentsRes, analyticsRes] = await Promise.all([
+        fetch(`/api/payments?${params}`),
+        fetch('/api/payments/analytics')
+      ])
+
+      if (paymentsRes.ok) {
+        const data = await paymentsRes.json()
+        setPayments(data.payments || data)
+      }
+
+      if (analyticsRes.ok) {
+        const analyticsData = await analyticsRes.json()
+        setAnalytics(analyticsData)
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.parent?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          payment.parent?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter
-    return matchesSearch && matchesStatus
+    return matchesSearch
   })
+
+  const handlePaymentSelection = (paymentId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedPayments(prev => [...prev, paymentId])
+    } else {
+      setSelectedPayments(prev => prev.filter(id => id !== paymentId))
+    }
+  }
+
+  const selectAllPayments = () => {
+    setSelectedPayments(filteredPayments.map(p => p.id))
+  }
+
+  const clearSelection = () => {
+    setSelectedPayments([])
+  }
+
+  const performBulkOperation = async (action: string) => {
+    if (selectedPayments.length === 0) {
+      alert('Please select payments first')
+      return
+    }
+
+    const confirmationMessages = {
+      markPaid: `Mark ${selectedPayments.length} payments as paid?`,
+      sendReminder: `Send reminders for ${selectedPayments.length} payments?`
+    }
+
+    if (!confirm(confirmationMessages[action as keyof typeof confirmationMessages])) {
+      return
+    }
+
+    setBulkOperating(true)
+    try {
+      const response = await fetch('/api/payments/overdue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          paymentIds: selectedPayments,
+          action
+        })
+      })
+
+      if (response.ok) {
+        await fetchData()
+        setSelectedPayments([])
+        const result = await response.json()
+        alert(result.message)
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Operation failed')
+      }
+    } catch (error) {
+      console.error('Bulk operation failed:', error)
+      alert('Operation failed')
+    } finally {
+      setBulkOperating(false)
+    }
+  }
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -109,12 +198,18 @@ export default function PaymentsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Payments</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Payments Dashboard</h1>
             <p className="text-muted-foreground">
-              Track and manage all payments and payment plans
+              Comprehensive payment management and analytics
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <Button asChild variant="outline">
+              <Link href="/payments/overdue">
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Overdue ({analytics?.overdueAnalysis.totalOverdue || 0})
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/payment-plans">
                 <Calendar className="mr-2 h-4 w-4" />
@@ -122,32 +217,39 @@ export default function PaymentsPage() {
               </Link>
             </Button>
             <Button asChild>
-              <Link href="/payments/new">
+              <Link href="/payment-plans/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Record Payment
+                Create Plan
               </Link>
             </Button>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        {/* Analytics Cards */}
+        <div className="grid gap-4 md:grid-cols-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${summary.total.toLocaleString()}</div>
+              <div className="text-2xl font-bold">${analytics?.stats.totalRevenue?.toLocaleString() || summary.total.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                <TrendingUp className="h-3 w-3 inline mr-1" />
+                All time
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Paid</CardTitle>
+              <CardTitle className="text-sm font-medium">Collected</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">${summary.paid.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-green-600">${analytics?.stats.totalPaid?.toLocaleString() || summary.paid.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {analytics?.stats.paymentSuccessRate?.toFixed(1) || '0'}% success rate
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -156,7 +258,10 @@ export default function PaymentsPage() {
               <Clock className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">${summary.pending.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-orange-600">${analytics?.stats.totalPending?.toLocaleString() || summary.pending.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                Awaiting payment
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -165,15 +270,107 @@ export default function PaymentsPage() {
               <AlertTriangle className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">${summary.overdue.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-red-600">${analytics?.stats.totalOverdue?.toLocaleString() || summary.overdue.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {analytics?.overdueAnalysis.averageDaysOverdue?.toFixed(0) || 0} avg days late
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Payment Time</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analytics?.stats.averagePaymentTime?.toFixed(0) || 0}</div>
+              <p className="text-xs text-muted-foreground">days after due</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Plans</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{payments.filter(p => p.paymentPlan).length}</div>
+              <p className="text-xs text-muted-foreground">payment plans</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Revenue Trend Chart */}
+        {analytics?.monthlyRevenue && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5" />
+                <span>Revenue Trend (12 Months)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80 flex items-center justify-center bg-muted/50 rounded-lg">
+                <div className="text-center">
+                  <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Revenue trend chart</p>
+                  <p className="text-xs text-muted-foreground">
+                    {analytics.monthlyRevenue.length} months of data
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bulk Operations */}
+        {selectedPayments.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium">
+                    {selectedPayments.length} payment{selectedPayments.length !== 1 ? 's' : ''} selected
+                  </span>
+                  <Button variant="outline" size="sm" onClick={clearSelection}>
+                    Clear Selection
+                  </Button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => performBulkOperation('markPaid')}
+                    disabled={bulkOperating}
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Mark as Paid
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => performBulkOperation('sendReminder')}
+                    disabled={bulkOperating}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Send Reminders
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Button size="sm" variant="outline" onClick={selectAllPayments}>
+                  Select All
+                </Button>
+                <Button size="sm" variant="outline" onClick={clearSelection}>
+                  Clear
+                </Button>
+              </div>
               <div className="flex-1">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -196,9 +393,9 @@ export default function PaymentsPage() {
                 <option value="overdue">Overdue</option>
                 <option value="failed">Failed</option>
               </select>
-              <Button variant="outline">
-                <Filter className="mr-2 h-4 w-4" />
-                More Filters
+              <Button variant="outline" onClick={fetchData}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
               </Button>
             </div>
           </CardContent>
@@ -215,15 +412,29 @@ export default function PaymentsPage() {
                 filteredPayments.map((payment) => (
                   <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex items-center space-x-4">
+                      <Checkbox
+                        checked={selectedPayments.includes(payment.id)}
+                        onCheckedChange={(checked) => handlePaymentSelection(payment.id, checked as boolean)}
+                      />
                       <div className="flex items-center space-x-2">
                         <Badge variant={getStatusVariant(payment.status)} className="flex items-center space-x-1">
                           {getStatusIcon(payment.status)}
                           <span>{payment.status}</span>
                         </Badge>
+                        {payment.paymentPlan && (
+                          <Badge variant="outline" className="capitalize">
+                            {payment.paymentPlan.type}
+                          </Badge>
+                        )}
                       </div>
                       <div>
                         <p className="font-medium">{payment.parent?.name}</p>
                         <p className="text-sm text-muted-foreground">{payment.parent?.email}</p>
+                        {payment.remindersSent > 0 && (
+                          <p className="text-xs text-orange-600">
+                            {payment.remindersSent} reminder{payment.remindersSent !== 1 ? 's' : ''} sent
+                          </p>
+                        )}
                       </div>
                     </div>
                     
@@ -237,15 +448,24 @@ export default function PaymentsPage() {
                           Paid: {new Date(payment.paidAt).toLocaleDateString()}
                         </p>
                       )}
+                      {payment.status === 'overdue' && (
+                        <p className="text-sm text-red-600">
+                          {Math.floor((new Date().getTime() - new Date(payment.dueDate).getTime()) / (1000 * 60 * 60 * 24))} days overdue
+                        </p>
+                      )}
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm">
-                        View Details
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/payments/${payment.id}`}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </Link>
                       </Button>
                       {payment.status === 'pending' && (
                         <Button size="sm">
-                          Process Payment
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Mark Paid
                         </Button>
                       )}
                     </div>
@@ -261,6 +481,12 @@ export default function PaymentsPage() {
                       : 'Payment records will appear here once you start managing payments'
                     }
                   </p>
+                  <Button asChild>
+                    <Link href="/payment-plans/new">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Payment Plan
+                    </Link>
+                  </Button>
                 </div>
               )}
             </div>
