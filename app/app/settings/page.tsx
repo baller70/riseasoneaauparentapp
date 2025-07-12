@@ -8,6 +8,8 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Textarea } from '../../components/ui/textarea'
+import { AIInput } from '../../components/ui/ai-input'
+import { AITextarea } from '../../components/ui/ai-textarea'
 import { Switch } from '../../components/ui/switch'
 import { 
   Save,
@@ -154,11 +156,15 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="programName">Program Name</Label>
-                <Input
+                <AIInput
                   id="programName"
                   value={settings.programName}
                   onChange={(e) => setSettings(prev => ({ ...prev, programName: e.target.value }))}
                   placeholder="Rise as One Yearly Program"
+                  fieldType="settings_description"
+                  context="Name of the basketball program for youth development"
+                  tone="professional"
+                  onAIGeneration={(text) => setSettings(prev => ({ ...prev, programName: text }))}
                 />
               </div>
               <div className="space-y-2">

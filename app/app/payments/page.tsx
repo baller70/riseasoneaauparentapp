@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { AppLayout } from '../../components/app-layout'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { AIInput } from '../../components/ui/ai-input'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { Checkbox } from '../../components/ui/checkbox'
@@ -582,12 +583,16 @@ export default function PaymentsPage() {
               </div>
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+                  <AIInput
                     placeholder="Search by parent name or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
+                    fieldType="search_query"
+                    context="Search for payments by parent name, email, or payment details"
+                    tone="casual"
+                    onAIGeneration={(text) => setSearchTerm(text)}
                   />
                 </div>
               </div>

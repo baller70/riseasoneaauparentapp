@@ -8,6 +8,8 @@ import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
 import { Textarea } from '../../../components/ui/textarea'
+import { AIInput } from '../../../components/ui/ai-input'
+import { AITextarea } from '../../../components/ui/ai-textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { ArrowLeft, Save, UserPlus } from 'lucide-react'
 import Link from 'next/link'
@@ -152,35 +154,47 @@ export default function NewParentPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
-                  <Input
+                  <AIInput
                     id="address"
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
                     placeholder="123 Main Street, City, State, ZIP"
+                    fieldType="form_field"
+                    context="Complete mailing address for parent in the Rise as One basketball program"
+                    tone="professional"
+                    onAIGeneration={(text) => setFormData(prev => ({ ...prev, address: text }))}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                  <Input
+                  <AIInput
                     id="emergencyContact"
                     name="emergencyContact"
                     value={formData.emergencyContact}
                     onChange={handleChange}
                     placeholder="Emergency contact name and relationship"
+                    fieldType="form_field"
+                    context="Emergency contact information including name and relationship to child"
+                    tone="professional"
+                    onAIGeneration={(text) => setFormData(prev => ({ ...prev, emergencyContact: text }))}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="notes">Notes</Label>
-                  <Textarea
+                  <AITextarea
                     id="notes"
                     name="notes"
                     value={formData.notes}
                     onChange={handleChange}
                     placeholder="Any additional notes about the parent or child..."
                     rows={3}
+                    fieldType="parent_notes"
+                    context={`Notes for parent ${formData.name || 'new parent'} in the Rise as One basketball program`}
+                    tone="professional"
+                    onAIGeneration={(text) => setFormData(prev => ({ ...prev, notes: text }))}
                   />
                 </div>
 

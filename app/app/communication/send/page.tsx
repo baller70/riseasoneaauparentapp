@@ -7,6 +7,8 @@ import { AppLayout } from '../../../components/app-layout'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Textarea } from '../../../components/ui/textarea'
+import { AIInput } from '../../../components/ui/ai-input'
+import { AITextarea } from '../../../components/ui/ai-textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
 import { Checkbox } from '../../../components/ui/checkbox'
@@ -594,20 +596,30 @@ function SendMessagePage() {
                 )}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Subject</label>
-                  <Input
+                  <AIInput
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Enter subject line..."
+                    fieldType="email_subject"
+                    context={`Email subject for ${selectedParents.length} parent(s) in the Rise as One program`}
+                    tone={selectedTone}
+                    parentData={selectedParents.length > 0 ? parents.find(p => p.id === selectedParents[0]) : null}
+                    onAIGeneration={(text) => setSubject(text)}
                   />
                 </div>
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Message Body</label>
-                  <Textarea
+                  <AITextarea
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="Enter your message here..."
                     rows={8}
+                    fieldType="message_body"
+                    context={`${messageType} message for ${selectedParents.length} parent(s) in the Rise as One basketball program`}
+                    tone={selectedTone}
+                    parentData={selectedParents.length > 0 ? parents.find(p => p.id === selectedParents[0]) : null}
+                    onAIGeneration={(text) => setBody(text)}
                   />
                 </div>
 
@@ -644,12 +656,19 @@ function SendMessagePage() {
                         .map((variable) => (
                         <div key={variable} className="flex items-center space-x-2">
                           <span className="text-sm w-20">{`{${variable}}`}</span>
-                          <Input
+                          <AIInput
                             placeholder={`Enter value for ${variable}`}
                             value={variables[variable] || ''}
                             onChange={(e) => setVariables(prev => ({
                               ...prev,
                               [variable]: e.target.value
+                            }))}
+                            fieldType="form_field"
+                            context={`Template variable "${variable}" for parent communication messages`}
+                            tone="professional"
+                            onAIGeneration={(text) => setVariables(prev => ({
+                              ...prev,
+                              [variable]: text
                             }))}
                           />
                         </div>
@@ -679,12 +698,16 @@ function SendMessagePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+                  <AIInput
                     placeholder="Search parents..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
+                    fieldType="search_query"
+                    context="Search for parents in the Rise as One program by name, email, or other details"
+                    tone="casual"
+                    onAIGeneration={(text) => setSearchTerm(text)}
                   />
                 </div>
 
