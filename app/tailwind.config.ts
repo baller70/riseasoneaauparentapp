@@ -10,7 +10,6 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        'audiowide': ['var(--font-audiowide)', 'cursive'],
         'saira': ['var(--font-saira)', 'sans-serif'],
       },
       backgroundImage: {

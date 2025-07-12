@@ -1,14 +1,7 @@
 
-import { Audiowide, Saira } from 'next/font/google'
+import { Saira } from 'next/font/google'
 import { Providers } from '../components/providers'
 import './globals.css'
-
-const audiowide = Audiowide({ 
-  subsets: ['latin'],
-  weight: '400',
-  variable: '--font-audiowide',
-  display: 'swap',
-})
 
 const saira = Saira({ 
   subsets: ['latin'],
@@ -29,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${saira.variable} ${audiowide.variable} font-saira`} suppressHydrationWarning>
+      <body className={`${saira.variable} font-saira`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>
