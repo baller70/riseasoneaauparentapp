@@ -32,6 +32,10 @@ export async function GET(
             }
           }
         },
+        scheduledMessages: {
+          orderBy: { scheduledFor: 'asc' },
+          take: 10
+        },
         versions: {
           orderBy: { createdAt: 'desc' },
           take: 5

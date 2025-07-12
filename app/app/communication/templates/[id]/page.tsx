@@ -239,13 +239,13 @@ export default function TemplateDetailPage() {
                     <pre className="whitespace-pre-wrap font-sans text-sm">{template.body}</pre>
                   </div>
                 </div>
-                {template.variables.length > 0 && (
+                {(template.variables?.length ?? 0) > 0 && (
                   <>
                     <Separator />
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Variables Used</label>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {template.variables.map((variable) => (
+                        {(template.variables ?? []).map((variable) => (
                           <Badge key={variable} variant="outline">
                             {`{${variable}}`}
                           </Badge>
@@ -263,9 +263,9 @@ export default function TemplateDetailPage() {
                 <CardTitle>Recent Usage</CardTitle>
               </CardHeader>
               <CardContent>
-                {template.messageLogs.length > 0 ? (
+                {(template.messageLogs?.length ?? 0) > 0 ? (
                   <div className="space-y-4">
-                    {template.messageLogs.slice(0, 10).map((log) => (
+                    {(template.messageLogs ?? []).slice(0, 10).map((log) => (
                       <div key={log.id} className="flex items-center justify-between p-3 border rounded-lg">
                         <div>
                           <p className="font-medium">Parent ID: {log.parentId}</p>
@@ -281,9 +281,9 @@ export default function TemplateDetailPage() {
                         </div>
                       </div>
                     ))}
-                    {template.messageLogs.length > 10 && (
+                    {(template.messageLogs?.length ?? 0) > 10 && (
                       <p className="text-center text-sm text-muted-foreground">
-                        And {template.messageLogs.length - 10} more...
+                        And {(template.messageLogs?.length ?? 0) - 10} more...
                       </p>
                     )}
                   </div>
@@ -340,14 +340,14 @@ export default function TemplateDetailPage() {
             </Card>
 
             {/* Scheduled Messages */}
-            {template.scheduledMessages.length > 0 && (
+            {(template.scheduledMessages?.length ?? 0) > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle>Scheduled Messages</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {template.scheduledMessages.map((message) => (
+                    {(template.scheduledMessages ?? []).map((message) => (
                       <div key={message.id} className="p-3 border rounded-lg">
                         <div className="flex items-center space-x-2 mb-1">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -356,7 +356,7 @@ export default function TemplateDetailPage() {
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {message.recipients.length} recipients
+                          {(message.recipients?.length ?? 0)} recipients
                         </p>
                         <Badge variant="secondary" className="mt-1">
                           {message.status}
