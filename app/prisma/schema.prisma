@@ -82,9 +82,13 @@ model Parent {
     payments           Payment[]
     messageLogs        MessageLog[]
     contracts          Contract[]
+    stripeCustomer     StripeCustomer?
+    recurringRecipients RecurringRecipient[]
+    recurringMessageLogs RecurringMessageLog[]
     
     @@index([email])
     @@index([status])
+    @@index([stripeCustomerId])
 }
 
 model PaymentPlan {
@@ -105,10 +109,12 @@ model PaymentPlan {
     
     parent               Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
     payments             Payment[]
+    stripeSubscription   StripeSubscription?
     
     @@index([parentId])
     @@index([status])
     @@index([nextDueDate])
+    @@index([stripeSubscriptionId])
 }
 
 model Payment {
@@ -131,11 +137,13 @@ model Payment {
     parent           Parent            @relation(fields: [parentId], references: [id], onDelete: Cascade)
     paymentPlan      PaymentPlan?      @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
     reminders        PaymentReminder[]
+    stripeInvoice    StripeInvoice?
     
     @@index([parentId])
     @@index([status])
     @@index([dueDate])
     @@index([stripeInvoiceId])
+    @@index([stripePaymentId])
 }
 
 model Template {
@@ -155,6 +163,9 @@ model Template {
     messageLogs        MessageLog[]
     scheduledMessages  ScheduledMessage[]
     paymentReminders   PaymentReminder[]
+    recurringMessages  RecurringMessage[]
+    versions           TemplateVersion[]
+    analytics          TemplateAnalytics[]
     
     @@index([category])
     @@index([channel])
@@ -177,6 +188,7 @@ model MessageLog {
     
     parent      Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
     template    Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+    recurringLog RecurringMessageLog?
     
     @@index([parentId])
     @@index([channel])
@@ -280,3 +292,447 @@ model AuditLog {
     @@index([entityId])
     @@index([createdAt])
 }
+
+// Enhanced Recurring Messages System
+model RecurringMessage {
+    id                String                @id @default(cuid())
+    name              String
+    templateId        String?
+    subject           String?
+    body              String                @db.Text
+    channel           String                @default("email") // email, sms, both
+    interval          String                // daily, weekly, monthly, custom
+    intervalValue     Int                   @default(1) // Every X days/weeks/months
+    customSchedule    String?               // Cron expression for custom intervals
+    targetAudience    String                @default("all") // all, overdue_payments, specific_parents, payment_plan_type
+    audienceFilter    Json?                 // Additional filtering criteria
+    startDate         DateTime              @default(now())
+    endDate           DateTime?
+    stopConditions    String[]              @default([]) // user_response, payment_completion, manual_stop, max_messages
+    maxMessages       Int?                  // Maximum messages to send per recipient
+    escalationRules   Json?                 // Rules for escalating urgency over time
+    isActive          Boolean               @default(true)
+    pausedAt          DateTime?
+    pausedReason      String?
+    variables         String[]              @default([])
+    createdBy         String
+    createdAt         DateTime              @default(now())
+    updatedAt         DateTime              @updatedAt
+    
+    template          Template?             @relation(fields: [templateId], references: [id], onDelete: SetNull)
+    instances         RecurringInstance[]
+    recipients        RecurringRecipient[]
+    
+    @@index([isActive])
+    @@index([interval])
+    @@index([targetAudience])
+    @@index([createdBy])
+}
+
+model RecurringInstance {
+    id                   String              @id @default(cuid())
+    recurringMessageId   String
+    scheduledFor         DateTime
+    actualSentAt         DateTime?
+    status               String              @default("scheduled") // scheduled, sent, failed, skipped, cancelled
+    recipientCount       Int                 @default(0)
+    successCount         Int                 @default(0)
+    failureCount         Int                 @default(0)
+    skipCount            Int                 @default(0)
+    metadata             Json?               // Additional execution data
+    errorMessage         String?
+    createdAt            DateTime            @default(now())
+    
+    recurringMessage     RecurringMessage    @relation(fields: [recurringMessageId], references: [id], onDelete: Cascade)
+    logs                 RecurringMessageLog[]
+    
+    @@index([scheduledFor])
+    @@index([status])
+    @@index([recurringMessageId])
+}
+
+model RecurringRecipient {
+    id                   String              @id @default(cuid())
+    recurringMessageId   String
+    parentId             String
+    isActive             Boolean             @default(true)
+    stoppedAt            DateTime?
+    stopReason           String?             // user_response, payment_completion, manual_stop, max_reached
+    messagesSent         Int                 @default(0)
+    lastMessageSent      DateTime?
+    responseReceived     Boolean             @default(false)
+    responseAt           DateTime?
+    paymentCompleted     Boolean             @default(false)
+    paymentCompletedAt   DateTime?
+    metadata             Json?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    recurringMessage     RecurringMessage    @relation(fields: [recurringMessageId], references: [id], onDelete: Cascade)
+    parent               Parent              @relation(fields: [parentId], references: [id], onDelete: Cascade)
+    
+    @@unique([recurringMessageId, parentId])
+    @@index([isActive])
+    @@index([parentId])
+    @@index([recurringMessageId])
+}
+
+model RecurringMessageLog {
+    id                   String              @id @default(cuid())
+    recurringInstanceId  String
+    parentId             String
+    messageLogId         String?             @unique
+    status               String              // sent, failed, skipped
+    reason               String?             // Why message was sent/failed/skipped
+    sentAt               DateTime?
+    metadata             Json?
+    
+    recurringInstance    RecurringInstance   @relation(fields: [recurringInstanceId], references: [id], onDelete: Cascade)
+    parent               Parent              @relation(fields: [parentId], references: [id], onDelete: Cascade)
+    messageLog           MessageLog?         @relation(fields: [messageLogId], references: [id], onDelete: SetNull)
+    
+    @@index([recurringInstanceId])
+    @@index([parentId])
+    @@index([status])
+}
+
+// Enhanced Stripe Integration
+model StripeCustomer {
+    id                   String              @id @default(cuid())
+    parentId             String              @unique
+    stripeCustomerId     String              @unique
+    email                String
+    name                 String?
+    phone                String?
+    address              Json?               // Stripe address object
+    defaultPaymentMethod String?
+    currency             String              @default("usd")
+    balance              Int                 @default(0) // Account balance in cents
+    delinquent           Boolean             @default(false)
+    metadata             Json?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    parent               Parent              @relation(fields: [parentId], references: [id], onDelete: Cascade)
+    paymentMethods       StripePaymentMethod[]
+    subscriptions        StripeSubscription[]
+    invoices             StripeInvoice[]
+    
+    @@index([stripeCustomerId])
+    @@index([parentId])
+    @@index([email])
+}
+
+model StripePaymentMethod {
+    id                   String              @id @default(cuid())
+    stripeCustomerId     String
+    stripePaymentMethodId String            @unique
+    type                 String              // card, bank_account, etc.
+    card                 Json?               // Card details (last4, brand, exp_month, exp_year)
+    bankAccount          Json?               // Bank account details
+    isDefault            Boolean             @default(false)
+    metadata             Json?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    customer             StripeCustomer      @relation(fields: [stripeCustomerId], references: [id], onDelete: Cascade)
+    
+    @@index([stripeCustomerId])
+    @@index([stripePaymentMethodId])
+    @@index([type])
+}
+
+model StripeSubscription {
+    id                   String              @id @default(cuid())
+    stripeCustomerId     String
+    stripeSubscriptionId String              @unique
+    paymentPlanId        String?             @unique
+    status               String              // active, past_due, canceled, unpaid, etc.
+    currentPeriodStart   DateTime
+    currentPeriodEnd     DateTime
+    cancelAt             DateTime?
+    canceledAt           DateTime?
+    trialStart           DateTime?
+    trialEnd             DateTime?
+    priceId              String?
+    quantity             Int                 @default(1)
+    metadata             Json?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    customer             StripeCustomer      @relation(fields: [stripeCustomerId], references: [id], onDelete: Cascade)
+    paymentPlan          PaymentPlan?        @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
+    
+    @@index([stripeCustomerId])
+    @@index([stripeSubscriptionId])
+    @@index([status])
+    @@index([paymentPlanId])
+}
+
+model StripeInvoice {
+    id                   String              @id @default(cuid())
+    stripeCustomerId     String
+    stripeInvoiceId      String              @unique
+    paymentId            String?             @unique
+    subscriptionId       String?
+    status               String              // draft, open, paid, void, uncollectible
+    amountDue            Int                 // Amount in cents
+    amountPaid           Int                 @default(0)
+    amountRemaining      Int                 @default(0)
+    currency             String              @default("usd")
+    dueDate              DateTime?
+    paidAt               DateTime?
+    paymentIntentId      String?
+    hostedInvoiceUrl     String?
+    invoicePdf           String?
+    attemptCount         Int                 @default(0)
+    nextPaymentAttempt   DateTime?
+    metadata             Json?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    customer             StripeCustomer      @relation(fields: [stripeCustomerId], references: [id], onDelete: Cascade)
+    payment              Payment?            @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+    
+    @@index([stripeCustomerId])
+    @@index([stripeInvoiceId])
+    @@index([status])
+    @@index([paymentId])
+    @@index([dueDate])
+}
+
+model StripeWebhookEvent {
+    id                   String              @id @default(cuid())
+    stripeEventId        String              @unique
+    eventType            String
+    apiVersion           String?
+    processed            Boolean             @default(false)
+    processedAt          DateTime?
+    retryCount           Int                 @default(0)
+    lastRetryAt          DateTime?
+    errorMessage         String?
+    data                 Json                // Full webhook event data
+    createdAt            DateTime            @default(now())
+    
+    @@index([stripeEventId])
+    @@index([eventType])
+    @@index([processed])
+    @@index([createdAt])
+}
+
+// AI Template Enhancement System
+model TemplateVersion {
+    id                   String              @id @default(cuid())
+    templateId           String
+    version              String              // 1.0, 1.1, 2.0, etc.
+    name                 String
+    subject              String
+    body                 String              @db.Text
+    category             String
+    channel              String
+    variables            String[]            @default([])
+    isAiGenerated        Boolean             @default(false)
+    aiPrompt             String?             @db.Text
+    changeDescription    String?             @db.Text
+    performanceScore     Float?              // 0-100 based on open rates, response rates, etc.
+    usageCount           Int                 @default(0)
+    successRate          Float?              // 0-100 based on desired outcomes
+    createdBy            String
+    createdAt            DateTime            @default(now())
+    
+    template             Template            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+    improvements         TemplateImprovement[]
+    analytics            TemplateAnalytics[]
+    
+    @@index([templateId])
+    @@index([version])
+    @@index([performanceScore])
+    @@index([createdAt])
+}
+
+model TemplateImprovement {
+    id                   String              @id @default(cuid())
+    templateVersionId    String
+    improvementType      String              // tone_adjustment, clarity_enhancement, personalization, effectiveness
+    originalText         String              @db.Text
+    improvedText         String              @db.Text
+    reason               String              @db.Text
+    confidence           Float               // 0-100 AI confidence in improvement
+    accepted             Boolean             @default(false)
+    acceptedAt           DateTime?
+    acceptedBy           String?
+    feedback             String?
+    createdAt            DateTime            @default(now())
+    
+    templateVersion      TemplateVersion     @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+    
+    @@index([templateVersionId])
+    @@index([improvementType])
+    @@index([accepted])
+    @@index([confidence])
+}
+
+model TemplateAnalytics {
+    id                   String              @id @default(cuid())
+    templateId           String
+    templateVersionId    String?
+    metricType           String              // open_rate, response_rate, conversion_rate, satisfaction_score
+    value                Float
+    period               String              // daily, weekly, monthly
+    periodStart          DateTime
+    periodEnd            DateTime
+    sampleSize           Int                 // Number of messages this metric is based on
+    metadata             Json?               // Additional context data
+    
+    template             Template            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+    templateVersion      TemplateVersion?    @relation(fields: [templateVersionId], references: [id], onDelete: SetNull)
+    
+    @@index([templateId])
+    @@index([metricType])
+    @@index([periodStart])
+    @@index([value])
+}
+
+// AI Recommendation Engine
+model AIRecommendation {
+    id                   String              @id @default(cuid())
+    type                 String              // payment_follow_up, contract_renewal, engagement_boost, risk_mitigation
+    category             String              // communication, payment, contract, relationship
+    title                String
+    description          String              @db.Text
+    priority             String              @default("medium") // low, medium, high, urgent
+    confidence           Float               // 0-100 AI confidence in recommendation
+    expectedImpact       String              // low, medium, high
+    targetEntityType     String              // parent, payment, contract, global
+    targetEntityId       String?
+    context              Json                // Relevant data that led to this recommendation
+    actionable           Boolean             @default(true)
+    autoExecutable       Boolean             @default(false)
+    isExecuted           Boolean             @default(false)
+    executedAt           DateTime?
+    executedBy           String?
+    executionResult      Json?               // Results of executing the recommendation
+    dismissedAt          DateTime?
+    dismissedBy          String?
+    dismissReason        String?
+    feedback             String?
+    feedbackRating       Int?                // 1-5 rating of recommendation quality
+    expiresAt            DateTime?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    actions              AIRecommendationAction[]
+    
+    @@index([type])
+    @@index([category])
+    @@index([priority])
+    @@index([targetEntityType])
+    @@index([targetEntityId])
+    @@index([isExecuted])
+    @@index([autoExecutable])
+    @@index([createdAt])
+}
+
+model AIRecommendationAction {
+    id                   String              @id @default(cuid())
+    recommendationId     String
+    actionType           String              // send_message, create_reminder, update_status, schedule_call, generate_content
+    title                String
+    description          String              @db.Text
+    parameters           Json                // Action-specific parameters
+    order                Int                 @default(1)
+    isRequired           Boolean             @default(true)
+    isExecuted           Boolean             @default(false)
+    executedAt           DateTime?
+    executionResult      Json?
+    errorMessage         String?
+    
+    recommendation       AIRecommendation    @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+    
+    @@index([recommendationId])
+    @@index([actionType])
+    @@index([isExecuted])
+    @@index([order])
+}
+
+model AIInsight {
+    id                   String              @id @default(cuid())
+    type                 String              // risk_assessment, payment_prediction, engagement_score, churn_risk
+    entityType           String              // parent, payment, contract, global
+    entityId             String?
+    title                String
+    summary              String              @db.Text
+    score                Float?              // 0-100 numerical score when applicable
+    confidence           Float               // 0-100 AI confidence
+    impact               String              @default("medium") // low, medium, high
+    factors              Json                // Contributing factors and data points
+    trends               Json?               // Historical trend data
+    predictions          Json?               // Future predictions if applicable
+    recommendations      Json?               // Quick recommendations related to this insight
+    alertThreshold       Float?              // Threshold that triggered this insight
+    isAlert              Boolean             @default(false)
+    acknowledgedAt       DateTime?
+    acknowledgedBy       String?
+    validUntil           DateTime?
+    createdAt            DateTime            @default(now())
+    
+    @@index([type])
+    @@index([entityType])
+    @@index([entityId])
+    @@index([score])
+    @@index([isAlert])
+    @@index([createdAt])
+}
+
+// Background Job System
+model BackgroundJob {
+    id                   String              @id @default(cuid())
+    type                 String              // send_recurring_messages, process_stripe_webhooks, generate_ai_insights
+    name                 String
+    status               String              @default("pending") // pending, running, completed, failed, cancelled
+    priority             Int                 @default(5) // 1 (highest) to 10 (lowest)
+    scheduledFor         DateTime            @default(now())
+    startedAt            DateTime?
+    completedAt          DateTime?
+    progress             Int                 @default(0) // 0-100 percentage
+    totalSteps           Int?
+    currentStep          Int                 @default(0)
+    parameters           Json?               // Job-specific parameters
+    result               Json?               // Job execution results
+    errorMessage         String?
+    retryCount           Int                 @default(0)
+    maxRetries           Int                 @default(3)
+    nextRetryAt          DateTime?
+    parentJobId          String?             // For job dependencies
+    createdBy            String?
+    createdAt            DateTime            @default(now())
+    updatedAt            DateTime            @updatedAt
+    
+    parentJob            BackgroundJob?      @relation("JobDependency", fields: [parentJobId], references: [id], onDelete: SetNull)
+    childJobs            BackgroundJob[]     @relation("JobDependency")
+    logs                 JobLog[]
+    
+    @@index([type])
+    @@index([status])
+    @@index([scheduledFor])
+    @@index([priority])
+    @@index([parentJobId])
+    @@index([createdAt])
+}
+
+model JobLog {
+    id                   String              @id @default(cuid())
+    jobId                String
+    level                String              // info, warning, error, debug
+    message              String              @db.Text
+    data                 Json?               // Additional structured data
+    timestamp            DateTime            @default(now())
+    
+    job                  BackgroundJob       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+    
+    @@index([jobId])
+    @@index([level])
+    @@index([timestamp])
+}
+
+

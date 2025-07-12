@@ -8,7 +8,24 @@ import {
   User, 
   Contract, 
   ScheduledMessage, 
-  PaymentReminder 
+  PaymentReminder,
+  RecurringMessage,
+  RecurringInstance,
+  RecurringRecipient,
+  RecurringMessageLog,
+  StripeCustomer,
+  StripePaymentMethod,
+  StripeSubscription,
+  StripeInvoice,
+  StripeWebhookEvent,
+  TemplateVersion,
+  TemplateImprovement,
+  TemplateAnalytics,
+  AIRecommendation,
+  AIRecommendationAction,
+  AIInsight as PrismaAIInsight,
+  BackgroundJob,
+  JobLog
 } from '@prisma/client'
 
 export type ParentWithRelations = Parent & {
@@ -16,28 +33,37 @@ export type ParentWithRelations = Parent & {
   payments: Payment[]
   messageLogs: MessageLog[]
   contracts: Contract[]
+  stripeCustomer?: StripeCustomer
+  recurringRecipients?: RecurringRecipient[]
+  recurringMessageLogs?: RecurringMessageLog[]
 }
 
 export type PaymentPlanWithRelations = PaymentPlan & {
   parent: Parent
   payments: Payment[]
+  stripeSubscription?: StripeSubscription
 }
 
 export type PaymentWithRelations = Payment & {
   parent: Parent
   paymentPlan?: PaymentPlan
   reminders: PaymentReminder[]
+  stripeInvoice?: StripeInvoice
 }
 
 export type TemplateWithRelations = Template & {
   messageLogs: MessageLog[]
   scheduledMessages: ScheduledMessage[]
   paymentReminders: PaymentReminder[]
+  recurringMessages?: RecurringMessage[]
+  versions?: TemplateVersion[]
+  analytics?: TemplateAnalytics[]
 }
 
 export type MessageLogWithRelations = MessageLog & {
   parent: Parent
   template?: Template
+  recurringLog?: RecurringMessageLog
 }
 
 export type ContractWithRelations = Contract & {
@@ -51,6 +77,56 @@ export type ScheduledMessageWithRelations = ScheduledMessage & {
 export type PaymentReminderWithRelations = PaymentReminder & {
   payment: PaymentWithRelations
   template?: Template
+}
+
+// New Enhanced Relations
+export type RecurringMessageWithRelations = RecurringMessage & {
+  template?: Template
+  instances: RecurringInstance[]
+  recipients: RecurringRecipient[]
+}
+
+export type RecurringInstanceWithRelations = RecurringInstance & {
+  recurringMessage: RecurringMessage
+  logs: RecurringMessageLog[]
+}
+
+export type RecurringRecipientWithRelations = RecurringRecipient & {
+  recurringMessage: RecurringMessage
+  parent: Parent
+}
+
+export type StripeCustomerWithRelations = StripeCustomer & {
+  parent: Parent
+  paymentMethods: StripePaymentMethod[]
+  subscriptions: StripeSubscription[]
+  invoices: StripeInvoice[]
+}
+
+export type StripeSubscriptionWithRelations = StripeSubscription & {
+  customer: StripeCustomer
+  paymentPlan?: PaymentPlan
+}
+
+export type StripeInvoiceWithRelations = StripeInvoice & {
+  customer: StripeCustomer
+  payment?: Payment
+}
+
+export type TemplateVersionWithRelations = TemplateVersion & {
+  template: Template
+  improvements: TemplateImprovement[]
+  analytics: TemplateAnalytics[]
+}
+
+export type AIRecommendationWithRelations = AIRecommendation & {
+  actions: AIRecommendationAction[]
+}
+
+export type BackgroundJobWithRelations = BackgroundJob & {
+  parentJob?: BackgroundJob
+  childJobs: BackgroundJob[]
+  logs: JobLog[]
 }
 
 export interface DashboardStats {
@@ -340,4 +416,304 @@ export interface AIStreamResponse {
   status: 'streaming' | 'complete' | 'error'
   content: string
   metadata?: any
+}
+
+// Enhanced Recurring Messages Types
+export interface RecurringMessageCreation {
+  name: string
+  templateId?: string
+  subject?: string
+  body: string
+  channel: 'email' | 'sms' | 'both'
+  interval: 'daily' | 'weekly' | 'monthly' | 'custom'
+  intervalValue: number
+  customSchedule?: string
+  targetAudience: 'all' | 'overdue_payments' | 'specific_parents' | 'payment_plan_type'
+  audienceFilter?: any
+  startDate: Date
+  endDate?: Date
+  stopConditions: string[]
+  maxMessages?: number
+  escalationRules?: any
+  variables: string[]
+}
+
+export interface RecurringMessageStats {
+  totalMessages: number
+  activeRecipients: number
+  messagesSent: number
+  responsesReceived: number
+  paymentsCompleted: number
+  averageResponseTime: number
+  conversionRate: number
+  stopReasons: {
+    user_response: number
+    payment_completion: number
+    manual_stop: number
+    max_reached: number
+  }
+}
+
+export interface RecurringSchedule {
+  nextRun: Date
+  upcomingRuns: Date[]
+  estimatedRecipients: number
+  status: 'active' | 'paused' | 'stopped'
+}
+
+// Enhanced Stripe Integration Types
+export interface StripeCustomerCreation {
+  parentId: string
+  email: string
+  name?: string
+  phone?: string
+  address?: any
+  metadata?: any
+}
+
+export interface StripeSubscriptionCreation {
+  customerId: string
+  paymentPlanId?: string
+  priceId: string
+  quantity?: number
+  trialPeriodDays?: number
+  metadata?: any
+}
+
+export interface StripeWebhookProcessing {
+  eventId: string
+  eventType: string
+  processed: boolean
+  retryCount: number
+  errorMessage?: string
+  data: any
+}
+
+export interface StripePaymentStats {
+  totalRevenue: number
+  monthlyRecurring: number
+  successfulPayments: number
+  failedPayments: number
+  churnRate: number
+  averageRevenuePerUser: number
+  paymentMethodBreakdown: {
+    card: number
+    bank_account: number
+    other: number
+  }
+}
+
+// AI Template Enhancement Types
+export interface TemplateEnhancementRequest {
+  templateId: string
+  improvementType: 'tone_adjustment' | 'clarity_enhancement' | 'personalization' | 'effectiveness'
+  targetAudience?: string
+  desiredTone?: 'friendly' | 'professional' | 'urgent' | 'formal'
+  specificInstructions?: string
+}
+
+export interface TemplatePerformanceAnalysis {
+  templateId: string
+  version?: string
+  metrics: {
+    openRate: number
+    responseRate: number
+    conversionRate: number
+    satisfactionScore: number
+  }
+  period: {
+    start: Date
+    end: Date
+  }
+  sampleSize: number
+  insights: string[]
+  recommendations: string[]
+}
+
+export interface TemplateVersionComparison {
+  originalVersion: TemplateVersion
+  improvedVersion: TemplateVersion
+  improvements: TemplateImprovement[]
+  performanceDiff: {
+    openRateChange: number
+    responseRateChange: number
+    conversionRateChange: number
+  }
+  recommendedAction: 'accept' | 'reject' | 'modify'
+}
+
+// AI Recommendation Engine Types
+export interface AIRecommendationCreation {
+  type: string
+  category: string
+  title: string
+  description: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  confidence: number
+  expectedImpact: 'low' | 'medium' | 'high'
+  targetEntityType: string
+  targetEntityId?: string
+  context: any
+  actions: AIRecommendationActionCreation[]
+  autoExecutable?: boolean
+  expiresAt?: Date
+}
+
+export interface AIRecommendationActionCreation {
+  actionType: string
+  title: string
+  description: string
+  parameters: any
+  order: number
+  isRequired: boolean
+}
+
+export interface AIRecommendationExecution {
+  recommendationId: string
+  executedActions: string[]
+  results: {
+    actionId: string
+    success: boolean
+    result?: any
+    errorMessage?: string
+  }[]
+  overallSuccess: boolean
+  feedback?: string
+  rating?: number
+}
+
+export interface AIInsightGeneration {
+  type: 'risk_assessment' | 'payment_prediction' | 'engagement_score' | 'churn_risk'
+  entityType: string
+  entityId?: string
+  title: string
+  summary: string
+  score?: number
+  confidence: number
+  impact: 'low' | 'medium' | 'high'
+  factors: any
+  trends?: any
+  predictions?: any
+  recommendations?: any
+  alertThreshold?: number
+  validUntil?: Date
+}
+
+// Background Job System Types
+export interface BackgroundJobCreation {
+  type: string
+  name: string
+  priority: number
+  scheduledFor: Date
+  parameters?: any
+  parentJobId?: string
+  maxRetries?: number
+}
+
+export interface BackgroundJobExecution {
+  jobId: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  progress: number
+  totalSteps?: number
+  currentStep: number
+  result?: any
+  errorMessage?: string
+}
+
+export interface JobSystemStats {
+  totalJobs: number
+  pendingJobs: number
+  runningJobs: number
+  completedJobs: number
+  failedJobs: number
+  averageExecutionTime: number
+  successRate: number
+}
+
+// Enhanced Communication Types
+export interface RecurringMessagePreview {
+  messageContent: {
+    subject: string
+    body: string
+  }
+  schedule: {
+    nextSend: Date
+    frequency: string
+    estimatedTotal: number
+  }
+  audience: {
+    totalRecipients: number
+    eligibleRecipients: number
+    excludedCount: number
+  }
+  stopConditions: string[]
+}
+
+export interface CommunicationAnalytics {
+  totalMessages: number
+  recurringMessages: number
+  oneTimeMessages: number
+  deliveryRate: number
+  responseRate: number
+  engagementScore: number
+  topPerformingTemplates: {
+    templateId: string
+    name: string
+    score: number
+  }[]
+  channelBreakdown: {
+    email: number
+    sms: number
+  }
+}
+
+// Enhanced Payment Analytics
+export interface PaymentForecast {
+  period: 'week' | 'month' | 'quarter'
+  projectedRevenue: number
+  projectedPayments: number
+  riskFactors: string[]
+  confidence: number
+  breakdown: {
+    recurring: number
+    oneTime: number
+    overdue: number
+  }
+}
+
+export interface ParentPaymentBehavior {
+  parentId: string
+  paymentReliability: number
+  averagePaymentDelay: number
+  preferredPaymentMethod: string
+  riskScore: number
+  patterns: string[]
+  recommendations: string[]
+}
+
+// System Configuration Types
+export interface AutomationSettings {
+  recurringMessages: {
+    enabled: boolean
+    maxConcurrent: number
+    retryAttempts: number
+    pauseOnErrors: boolean
+  }
+  aiRecommendations: {
+    enabled: boolean
+    autoExecute: boolean
+    confidenceThreshold: number
+    approvalRequired: boolean
+  }
+  stripeIntegration: {
+    webhooksEnabled: boolean
+    autoCreateCustomers: boolean
+    autoSyncPayments: boolean
+    retryFailedPayments: boolean
+  }
+  notifications: {
+    adminAlerts: boolean
+    parentNotifications: boolean
+    urgentAlertsOnly: boolean
+  }
 }
