@@ -146,13 +146,22 @@ export default function ParentProfilePage() {
               </Link>
             </Button>
             <div className="flex items-center space-x-4">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">
-                  {parent.name.split(' ').map(n => n[0]).join('')}
-                </span>
+              <div className="relative">
+                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+                  <span className="text-white font-bold text-2xl">
+                    {parent.name.split(' ').map(n => n[0]).join('')}
+                  </span>
+                </div>
+                <div className="absolute -top-1 -right-1">
+                  <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 text-xs">
+                    <Brain className="mr-1 h-3 w-3" />
+                    AI
+                  </Badge>
+                </div>
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">{parent.name}</h1>
+                <p className="text-muted-foreground">AI-Enhanced Parent Profile</p>
                 <div className="flex items-center space-x-2 mt-1">
                   <Badge variant={getStatusVariant(parent.status)}>
                     {parent.status}
@@ -165,6 +174,18 @@ export default function ParentProfilePage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <Button 
+              onClick={fetchAIAnalysis}
+              disabled={aiLoading}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+            >
+              {aiLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+              ) : (
+                <Brain className="mr-2 h-4 w-4" />
+              )}
+              {aiLoading ? 'AI Analyzing...' : 'AI Analysis'}
+            </Button>
             <Button variant="outline">
               <MessageSquare className="mr-2 h-4 w-4" />
               Send Message

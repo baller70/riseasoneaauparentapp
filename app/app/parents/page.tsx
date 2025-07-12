@@ -23,7 +23,8 @@ import {
   Wand2,
   Target,
   Shield,
-  Zap
+  Zap,
+  Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 import { ParentWithRelations } from '../../lib/types'
@@ -207,40 +208,42 @@ export default function ParentsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Parents</h1>
+            <h1 className="text-3xl font-bold tracking-tight">AI-Enhanced Parent Management</h1>
             <p className="text-muted-foreground">
-              Manage parent profiles and information
+              Manage parent profiles with intelligent insights and automation
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1">
+              <Brain className="mr-1 h-3 w-3" />
+              AI Powered
+            </Badge>
             {selectedParents.length > 0 && (
               <>
                 <Button
-                  variant="outline"
                   onClick={performBulkAIAnalysis}
                   disabled={aiLoading}
-                  size="sm"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
                 >
                   {aiLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   ) : (
                     <Brain className="mr-2 h-4 w-4" />
                   )}
-                  AI Analysis ({selectedParents.length})
+                  AI Risk Analysis ({selectedParents.length})
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={generateBulkMessages}
                   disabled={aiLoading}
-                  size="sm"
+                  className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
                 >
                   <Wand2 className="mr-2 h-4 w-4" />
-                  Generate Messages
+                  AI Messages
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowAiActions(!showAiActions)}
-                  size="sm"
+                  className="border-purple-300 text-purple-700 hover:bg-purple-50"
                 >
                   <Zap className="mr-2 h-4 w-4" />
                   More AI Actions
@@ -341,54 +344,98 @@ export default function ParentsPage() {
           </CardContent>
         </Card>
 
-        {/* AI Actions Panel */}
-        {showAiActions && selectedParents.length > 0 && (
-          <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        {/* AI Quick Actions - Always Visible */}
+        {selectedParents.length === 0 && (
+          <Card className="border-purple-200 bg-gradient-to-r from-purple-50 via-blue-50 to-indigo-50 shadow-lg">
             <CardHeader>
-              <CardTitle className="text-sm flex items-center">
-                <Brain className="mr-2 h-4 w-4 text-purple-600" />
-                AI Actions for {selectedParents.length} Selected Parents
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center text-purple-800">
+                    <Brain className="mr-2 h-5 w-5 text-purple-600" />
+                    AI Parent Intelligence Center
+                  </CardTitle>
+                  <p className="text-sm text-purple-600 mt-1">Select parents to unlock AI-powered insights and automation</p>
+                </div>
+                <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  AI Ready
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                  <Shield className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                  <h4 className="font-medium text-sm mb-1">Risk Assessment</h4>
+                  <p className="text-xs text-muted-foreground">AI analyzes payment patterns and behavior</p>
+                </div>
+                <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                  <MessageSquare className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                  <h4 className="font-medium text-sm mb-1">Smart Messages</h4>
+                  <p className="text-xs text-muted-foreground">Generate personalized communications</p>
+                </div>
+                <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                  <TrendingUp className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                  <h4 className="font-medium text-sm mb-1">Payment Prediction</h4>
+                  <p className="text-xs text-muted-foreground">Predict payment behavior and issues</p>
+                </div>
+                <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                  <Target className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                  <h4 className="font-medium text-sm mb-1">Engagement Analysis</h4>
+                  <p className="text-xs text-muted-foreground">Measure parent engagement levels</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI Actions Panel */}
+        {showAiActions && selectedParents.length > 0 && (
+          <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center text-purple-800">
+                <Brain className="mr-2 h-5 w-5 text-purple-600" />
+                AI Actions for {selectedParents.length} Selected Parents
+              </CardTitle>
+              <p className="text-sm text-purple-600 mt-1">Choose an AI-powered action to perform</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Button
-                  variant="outline"
-                  size="sm"
                   onClick={performBulkAIAnalysis}
                   disabled={aiLoading}
-                  className="flex-col h-auto py-3"
+                  className="flex-col h-auto py-4 bg-gradient-to-br from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white"
                 >
-                  <Shield className="h-5 w-5 mb-1" />
-                  <span className="text-xs">Risk Assessment</span>
+                  <Shield className="h-6 w-6 mb-2" />
+                  <span className="text-sm font-medium">Risk Assessment</span>
+                  <span className="text-xs opacity-90">Analyze parent risks</span>
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
                   onClick={generateBulkMessages}
                   disabled={aiLoading}
-                  className="flex-col h-auto py-3"
+                  className="flex-col h-auto py-4 bg-gradient-to-br from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
                 >
-                  <MessageSquare className="h-5 w-5 mb-1" />
-                  <span className="text-xs">Generate Messages</span>
+                  <MessageSquare className="h-6 w-6 mb-2" />
+                  <span className="text-sm font-medium">Generate Messages</span>
+                  <span className="text-xs opacity-90">Create personalized content</span>
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   disabled={aiLoading}
-                  className="flex-col h-auto py-3"
+                  className="flex-col h-auto py-4 border-purple-300 text-purple-700 hover:bg-purple-50"
                 >
-                  <TrendingUp className="h-5 w-5 mb-1" />
-                  <span className="text-xs">Payment Prediction</span>
+                  <TrendingUp className="h-6 w-6 mb-2" />
+                  <span className="text-sm font-medium">Payment Prediction</span>
+                  <span className="text-xs opacity-70">Coming Soon</span>
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   disabled={aiLoading}
-                  className="flex-col h-auto py-3"
+                  className="flex-col h-auto py-4 border-purple-300 text-purple-700 hover:bg-purple-50"
                 >
-                  <Target className="h-5 w-5 mb-1" />
-                  <span className="text-xs">Engagement Analysis</span>
+                  <Target className="h-6 w-6 mb-2" />
+                  <span className="text-sm font-medium">Engagement Analysis</span>
+                  <span className="text-xs opacity-70">Coming Soon</span>
                 </Button>
               </div>
             </CardContent>

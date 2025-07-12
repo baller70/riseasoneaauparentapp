@@ -90,10 +90,22 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome to your Rise as One program management dashboard
+              Welcome to your AI-powered Rise as One program management dashboard
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <Button 
+              onClick={fetchAIInsights}
+              disabled={aiLoading}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+            >
+              {aiLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+              ) : (
+                <Brain className="mr-2 h-4 w-4" />
+              )}
+              {aiLoading ? 'AI Analyzing...' : 'Generate AI Insights'}
+            </Button>
             <Button asChild variant="outline">
               <Link href="/parents">
                 <Users className="mr-2 h-4 w-4" />
@@ -113,22 +125,52 @@ export default function DashboardPage() {
         {stats && <StatsCards stats={stats} />}
 
         {/* AI Insights Section */}
+        <div className="relative">
+          <div className="absolute -top-2 left-4 z-10">
+            <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 shadow-md">
+              <Brain className="mr-1 h-3 w-3" />
+              Powered by AI
+            </Badge>
+          </div>
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 shadow-lg">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-bold flex items-center text-purple-800">
+                    <Brain className="mr-2 h-6 w-6 text-purple-600" />
+                    AI Executive Dashboard
+                  </CardTitle>
+                  <p className="text-sm text-purple-600 mt-1">Real-time insights and recommendations</p>
+                </div>
+                <Button
+                  onClick={fetchAIInsights}
+                  disabled={aiLoading}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  size="sm"
+                >
+                  {aiLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {aiLoading ? 'Analyzing...' : 'Refresh AI Analysis'}
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-3">
           {/* AI Executive Summary */}
-          <Card className="md:col-span-2">
+          <Card className="md:col-span-2 border-purple-200">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Brain className="mr-2 h-4 w-4 text-purple-600" />
+              <CardTitle className="text-lg font-medium flex items-center">
+                <Brain className="mr-2 h-5 w-5 text-purple-600" />
                 AI Insights & Recommendations
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchAIInsights}
-                disabled={aiLoading}
-              >
-                <RefreshCw className={`h-4 w-4 ${aiLoading ? 'animate-spin' : ''}`} />
-              </Button>
+              <Badge variant="outline" className="text-purple-600 border-purple-200">
+                AI Generated
+              </Badge>
             </CardHeader>
             <CardContent>
               {aiLoading ? (
@@ -184,11 +226,16 @@ export default function DashboardPage() {
           </Card>
 
           {/* AI Recommendations */}
-          <Card>
+          <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-yellow-50">
             <CardHeader>
-              <CardTitle className="text-sm font-medium flex items-center">
-                <Lightbulb className="mr-2 h-4 w-4 text-yellow-600" />
-                Priority Actions
+              <CardTitle className="text-lg font-medium flex items-center justify-between">
+                <div className="flex items-center">
+                  <Lightbulb className="mr-2 h-5 w-5 text-orange-600" />
+                  AI Priority Actions
+                </div>
+                <Badge variant="outline" className="text-orange-600 border-orange-200">
+                  AI Powered
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>

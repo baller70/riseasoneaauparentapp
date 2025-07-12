@@ -385,13 +385,17 @@ function SendMessagePage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Send Message</h1>
+              <h1 className="text-3xl font-bold tracking-tight">AI-Powered Message Composer</h1>
               <p className="text-muted-foreground">
-                Compose and send messages to parents
+                Let AI help you craft personalized messages to parents
               </p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1">
+              <Brain className="mr-1 h-3 w-3" />
+              AI Enhanced
+            </Badge>
             <Button variant="outline" onClick={generatePreview}>
               <Eye className="mr-2 h-4 w-4" />
               Preview
@@ -430,31 +434,54 @@ function SendMessagePage() {
               </CardContent>
             </Card>
 
-            {/* Message Content */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle>Message Content</CardTitle>
-                <div className="flex items-center space-x-2">
+            {/* AI-Powered Message Content */}
+            <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl font-bold flex items-center text-purple-800">
+                      <Brain className="mr-2 h-6 w-6 text-purple-600" />
+                      AI Message Composer
+                    </CardTitle>
+                    <p className="text-sm text-purple-600 mt-1">Let AI craft your perfect message</p>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+                    <Sparkles className="mr-1 h-3 w-3" />
+                    AI Powered
+                  </Badge>
+                </div>
+                
+                {/* Primary AI Action Buttons */}
+                <div className="flex items-center space-x-3 mt-4">
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAiOptions(!showAiOptions)}
+                    onClick={generateAIMessage}
+                    disabled={aiGenerating || selectedParents.length === 0}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+                    size="lg"
                   >
-                    <Brain className="mr-2 h-4 w-4" />
-                    AI Assistant
+                    {aiGenerating ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                    ) : (
+                      <Wand2 className="mr-2 h-5 w-5" />
+                    )}
+                    {aiGenerating ? 'AI Generating...' : 'Generate AI Message'}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={generateAIMessage}
-                    disabled={aiGenerating || selectedParents.length === 0}
+                    onClick={() => setShowAiOptions(!showAiOptions)}
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
                   >
-                    {aiGenerating ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
-                    ) : (
-                      <Wand2 className="mr-2 h-4 w-4" />
-                    )}
-                    Generate
+                    <Brain className="mr-2 h-4 w-4" />
+                    AI Settings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={optimizeSubjectLine}
+                    disabled={aiGenerating || !subject.trim()}
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Target className="mr-2 h-4 w-4" />
+                    Optimize Subject
                   </Button>
                 </div>
               </CardHeader>

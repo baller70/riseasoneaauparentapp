@@ -26,7 +26,12 @@ import {
   BarChart3,
   Mail,
   RefreshCw,
-  Eye
+  Eye,
+  Brain,
+  Wand2,
+  Sparkles,
+  Target,
+  Shield
 } from 'lucide-react'
 import Link from 'next/link'
 import { PaymentWithRelations, PaymentStats, PaymentAnalytics } from '../../lib/types'
@@ -43,6 +48,9 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedPayments, setSelectedPayments] = useState<string[]>([])
   const [bulkOperating, setBulkOperating] = useState(false)
+  const [aiInsights, setAiInsights] = useState<any>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [showAiActions, setShowAiActions] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -182,6 +190,72 @@ export default function PaymentsPage() {
 
   const summary = calculateSummary()
 
+  // AI Functions
+  const fetchAIPaymentInsights = async () => {
+    setAiLoading(true)
+    try {
+      const response = await fetch('/api/ai/payment-insights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          paymentData: {
+            totalPayments: filteredPayments.length,
+            overdueCount: filteredPayments.filter(p => p.status === 'overdue').length,
+            pendingCount: filteredPayments.filter(p => p.status === 'pending').length,
+            totalAmount: summary.total,
+            overdueAmount: summary.overdue
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setAiInsights(data.insights)
+      }
+    } catch (error) {
+      console.error('Failed to fetch AI payment insights:', error)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const generateAIReminders = async () => {
+    if (selectedPayments.length === 0) {
+      alert('Please select overdue payments first')
+      return
+    }
+
+    setAiLoading(true)
+    try {
+      const response = await fetch('/api/ai/bulk-operations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          operation: 'generate_payment_reminders',
+          paymentIds: selectedPayments,
+          parameters: {
+            tone: 'professional',
+            urgency: 'medium'
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Generated ${data.results.successfullyGenerated} AI-powered payment reminders`)
+      }
+    } catch (error) {
+      console.error('AI reminder generation error:', error)
+      alert('Failed to generate AI reminders')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <AppLayout>
@@ -198,12 +272,38 @@ export default function PaymentsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Payments Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">AI-Enhanced Payments Dashboard</h1>
             <p className="text-muted-foreground">
-              Comprehensive payment management and analytics
+              Smart payment management with predictive insights and automation
             </p>
           </div>
           <div className="flex items-center space-x-2">
+            <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1">
+              <Brain className="mr-1 h-3 w-3" />
+              AI Powered
+            </Badge>
+            <Button 
+              onClick={fetchAIPaymentInsights}
+              disabled={aiLoading}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg"
+            >
+              {aiLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+              ) : (
+                <Brain className="mr-2 h-4 w-4" />
+              )}
+              {aiLoading ? 'AI Analyzing...' : 'AI Payment Insights'}
+            </Button>
+            {selectedPayments.length > 0 && (
+              <Button 
+                onClick={generateAIReminders}
+                disabled={aiLoading}
+                className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
+              >
+                <Wand2 className="mr-2 h-4 w-4" />
+                AI Reminders ({selectedPayments.length})
+              </Button>
+            )}
             <Button asChild variant="outline">
               <Link href="/payments/overdue">
                 <AlertTriangle className="mr-2 h-4 w-4" />
@@ -294,6 +394,115 @@ export default function PaymentsPage() {
             <CardContent>
               <div className="text-2xl font-bold">{payments.filter(p => p.paymentPlan).length}</div>
               <p className="text-xs text-muted-foreground">payment plans</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* AI Payment Insights Section */}
+        <div className="relative">
+          <div className="absolute -top-2 left-4 z-10">
+            <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 shadow-md">
+              <Brain className="mr-1 h-3 w-3" />
+              AI Insights
+            </Badge>
+          </div>
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 shadow-lg">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-bold flex items-center text-purple-800">
+                    <Brain className="mr-2 h-6 w-6 text-purple-600" />
+                    AI Payment Intelligence
+                  </CardTitle>
+                  <p className="text-sm text-purple-600 mt-1">Predictive insights and smart recommendations</p>
+                </div>
+                <Button
+                  onClick={fetchAIPaymentInsights}
+                  disabled={aiLoading}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  size="sm"
+                >
+                  {aiLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  {aiLoading ? 'Analyzing...' : 'Generate AI Insights'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {aiLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                  <span className="ml-2 text-sm text-muted-foreground">AI analyzing payment patterns...</span>
+                </div>
+              ) : aiInsights ? (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center text-blue-700">
+                      <TrendingUp className="mr-1 h-4 w-4" />
+                      Payment Predictions
+                    </h4>
+                    {aiInsights.predictions?.slice(0, 3).map((prediction: string, index: number) => (
+                      <div key={index} className="flex items-start space-x-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <span className="text-sm">{prediction}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center text-orange-700">
+                      <AlertTriangle className="mr-1 h-4 w-4" />
+                      Risk Alerts
+                    </h4>
+                    {aiInsights.risks?.slice(0, 3).map((risk: string, index: number) => (
+                      <div key={index} className="flex items-start space-x-2">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <span className="text-sm">{risk}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center text-green-700">
+                      <Target className="mr-1 h-4 w-4" />
+                      Optimization Tips
+                    </h4>
+                    {aiInsights.optimizations?.slice(0, 3).map((tip: string, index: number) => (
+                      <div key={index} className="flex items-start space-x-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
+                        <span className="text-sm">{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Brain className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Click "Generate AI Insights" to get payment intelligence
+                  </p>
+                  <div className="grid grid-cols-3 gap-4 mt-6">
+                    <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                      <TrendingUp className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                      <h4 className="font-medium text-sm mb-1">Payment Predictions</h4>
+                      <p className="text-xs text-muted-foreground">Forecast payment behavior and timing</p>
+                    </div>
+                    <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                      <Shield className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                      <h4 className="font-medium text-sm mb-1">Risk Assessment</h4>
+                      <p className="text-xs text-muted-foreground">Identify high-risk payment scenarios</p>
+                    </div>
+                    <div className="text-center p-4 border border-purple-200 rounded-lg bg-white/50">
+                      <Target className="h-8 w-8 mb-2 mx-auto text-purple-600" />
+                      <h4 className="font-medium text-sm mb-1">Smart Optimization</h4>
+                      <p className="text-xs text-muted-foreground">Improve collection strategies</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
