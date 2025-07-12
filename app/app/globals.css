@@ -57,6 +57,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-audiowide;
+  }
+  p, span, div, label, button, input, textarea, select {
+    @apply font-saira;
+  }
 }
 
 /* Custom utility classes */

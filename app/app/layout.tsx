@@ -1,9 +1,21 @@
 
-import { Inter } from 'next/font/google'
+import { Audiowide, Saira } from 'next/font/google'
 import { Providers } from '../components/providers'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const audiowide = Audiowide({ 
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-audiowide',
+  display: 'swap',
+})
+
+const saira = Saira({ 
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-saira',
+  display: 'swap',
+})
 
 export const metadata = {
   title: 'Rise as One - Basketball Program Manager',
@@ -17,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${saira.variable} ${audiowide.variable} font-saira`} suppressHydrationWarning>
         <Providers>
           {children}
         </Providers>
