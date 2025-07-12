@@ -21,7 +21,12 @@ import {
   Mail,
   Smartphone,
   MessageSquare,
-  Clock
+  Clock,
+  Brain,
+  Wand2,
+  Sparkles,
+  Target,
+  TrendingUp
 } from 'lucide-react'
 import Link from 'next/link'
 import { ParentWithRelations, TemplateWithRelations, MessagePreview } from '../../../lib/types'
@@ -48,6 +53,14 @@ function SendMessagePage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [scheduledFor, setScheduledFor] = useState('')
   const [variables, setVariables] = useState<Record<string, string>>({})
+  
+  // AI-related state
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [selectedTone, setSelectedTone] = useState<'friendly' | 'professional' | 'urgent' | 'formal'>('friendly')
+  const [messageType, setMessageType] = useState<'general' | 'reminder' | 'welcome' | 'follow_up' | 'overdue'>('general')
+  const [personalizationLevel, setPersonalizationLevel] = useState(3)
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+  const [showAiOptions, setShowAiOptions] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,6 +215,153 @@ function SendMessagePage() {
     }
   }
 
+  // AI Functions
+  const generateAIMessage = async () => {
+    if (selectedParents.length === 0) {
+      alert('Please select at least one recipient to generate personalized content')
+      return
+    }
+
+    setAiGenerating(true)
+    try {
+      const response = await fetch('/api/ai/generate-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          context: {
+            parentId: selectedParents[0], // Use first selected parent for context
+            messageType,
+            tone: selectedTone,
+            urgencyLevel: messageType === 'overdue' ? 5 : messageType === 'reminder' ? 3 : 2
+          },
+          customInstructions: `Generate a ${messageType} message with ${selectedTone} tone. Personalization level: ${personalizationLevel}/5`,
+          includePersonalization: personalizationLevel > 2,
+          templateId: selectedTemplateId || undefined
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.message) {
+          setSubject(data.message.subject || subject)
+          setBody(data.message.body || body)
+          setAiSuggestions(data.message.suggestions || [])
+        }
+      } else {
+        alert('Failed to generate AI message')
+      }
+    } catch (error) {
+      console.error('AI generation error:', error)
+      alert('Failed to generate AI message')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  const optimizeSubjectLine = async () => {
+    if (!subject.trim()) {
+      alert('Please enter a subject line first')
+      return
+    }
+
+    setAiGenerating(true)
+    try {
+      const response = await fetch('/api/ai/stream-generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: `Optimize this email subject line for better open rates: "${subject}". Provide 3 alternative subject lines that are more engaging and relevant to parent communication in an educational program.`,
+          context: { currentSubject: subject, tone: selectedTone, messageType },
+          type: 'recommendation'
+        })
+      })
+
+      if (response.ok) {
+        const reader = response.body?.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        
+        while (reader) {
+          const { done, value } = await reader.read()
+          if (done) break
+          
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n')
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') {
+                // Parse suggestions from buffer
+                const suggestions = buffer.split('\n').filter(line => line.trim().startsWith('-') || line.trim().startsWith('1.')).slice(0, 3)
+                setAiSuggestions(suggestions)
+                return
+              }
+              try {
+                const parsed = JSON.parse(data)
+                buffer += parsed.content
+              } catch (e) {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Subject optimization error:', error)
+      alert('Failed to optimize subject line')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  const enhanceWithPersonalization = async () => {
+    if (!body.trim() || selectedParents.length === 0) {
+      alert('Please enter a message body and select recipients first')
+      return
+    }
+
+    setAiGenerating(true)
+    try {
+      const response = await fetch('/api/ai/bulk-operations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          operation: 'generate_personalized_messages',
+          parentIds: selectedParents.slice(0, 3), // Limit to first 3 for preview
+          parameters: {
+            messageType,
+            tone: selectedTone,
+            includeDetails: personalizationLevel > 3,
+            baseContent: body
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.results.messages?.length > 0) {
+          // Show personalization suggestions
+          const suggestions = data.results.messages.map((m: any) => 
+            `For ${m.parentName}: "${m.message?.body?.substring(0, 100)}..."`
+          )
+          setAiSuggestions(suggestions)
+        }
+      }
+    } catch (error) {
+      console.error('Personalization error:', error)
+      alert('Failed to enhance with personalization')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   if (loading) {
     return (
       <AppLayout>
@@ -272,10 +432,139 @@ function SendMessagePage() {
 
             {/* Message Content */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle>Message Content</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAiOptions(!showAiOptions)}
+                  >
+                    <Brain className="mr-2 h-4 w-4" />
+                    AI Assistant
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={generateAIMessage}
+                    disabled={aiGenerating || selectedParents.length === 0}
+                  >
+                    {aiGenerating ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                    ) : (
+                      <Wand2 className="mr-2 h-4 w-4" />
+                    )}
+                    Generate
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                
+                {/* AI Options Panel */}
+                {showAiOptions && (
+                  <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm flex items-center">
+                        <Sparkles className="mr-2 h-4 w-4 text-purple-600" />
+                        AI Configuration
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-medium mb-1 block">Message Type</label>
+                          <select
+                            value={messageType}
+                            onChange={(e) => setMessageType(e.target.value as any)}
+                            className="w-full px-2 py-1 text-sm border border-input rounded bg-background"
+                          >
+                            <option value="general">General</option>
+                            <option value="reminder">Payment Reminder</option>
+                            <option value="welcome">Welcome Message</option>
+                            <option value="follow_up">Follow Up</option>
+                            <option value="overdue">Overdue Notice</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="text-xs font-medium mb-1 block">Tone</label>
+                          <select
+                            value={selectedTone}
+                            onChange={(e) => setSelectedTone(e.target.value as any)}
+                            className="w-full px-2 py-1 text-sm border border-input rounded bg-background"
+                          >
+                            <option value="friendly">Friendly</option>
+                            <option value="professional">Professional</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="formal">Formal</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs font-medium mb-1 block">
+                          Personalization Level: {personalizationLevel}/5
+                        </label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="5"
+                          value={personalizationLevel}
+                          onChange={(e) => setPersonalizationLevel(parseInt(e.target.value))}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                          <span>Basic</span>
+                          <span>Highly Personalized</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={optimizeSubjectLine}
+                          disabled={aiGenerating || !subject.trim()}
+                          className="flex-1"
+                        >
+                          <Target className="mr-1 h-3 w-3" />
+                          Optimize Subject
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={enhanceWithPersonalization}
+                          disabled={aiGenerating || selectedParents.length === 0}
+                          className="flex-1"
+                        >
+                          <TrendingUp className="mr-1 h-3 w-3" />
+                          Personalize
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* AI Suggestions */}
+                {aiSuggestions.length > 0 && (
+                  <Card className="border-green-200 bg-green-50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center text-green-700">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        AI Suggestions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {aiSuggestions.map((suggestion, index) => (
+                          <div key={index} className="text-sm p-2 bg-white border border-green-200 rounded">
+                            {suggestion}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Subject</label>
                   <Input

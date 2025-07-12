@@ -224,3 +224,120 @@ export interface ReminderSettings {
   finalNoticeDays: number
   escalationDays: number
 }
+
+// AI Integration Types
+export interface AIGeneratedContent {
+  content: string
+  confidence: number
+  suggestions?: string[]
+  reasoning?: string
+}
+
+export interface PersonalizedMessage {
+  subject: string
+  body: string
+  tone: 'friendly' | 'professional' | 'urgent' | 'formal'
+  personalizationLevel: number
+  context: string[]
+}
+
+export interface AIInsight {
+  id: string
+  type: 'risk_assessment' | 'payment_prediction' | 'engagement_score' | 'retention_risk' | 'contract_analysis'
+  title: string
+  description: string
+  score: number
+  confidence: number
+  recommendations: string[]
+  data: any
+  generatedAt: Date
+}
+
+export interface ParentRiskAssessment {
+  parentId: string
+  riskScore: number
+  paymentReliability: number
+  communicationResponsiveness: number
+  contractCompliance: number
+  retentionRisk: number
+  factors: {
+    positive: string[]
+    negative: string[]
+    neutral: string[]
+  }
+  recommendations: string[]
+  lastUpdated: Date
+}
+
+export interface AIWorkflowTrigger {
+  id: string
+  name: string
+  description: string
+  condition: string
+  action: 'send_message' | 'create_reminder' | 'update_status' | 'escalate' | 'notify_admin'
+  enabled: boolean
+  aiGenerated: boolean
+  parameters: any
+}
+
+export interface ContractAnalysis {
+  contractId: string
+  summary: string
+  keyTerms: string[]
+  expirationRisk: number
+  complianceScore: number
+  renewalRecommendation: string
+  suggestedActions: string[]
+  analysisDate: Date
+}
+
+export interface PaymentPrediction {
+  parentId: string
+  paymentId?: string
+  likelihood: number
+  predictedDate?: Date
+  riskFactors: string[]
+  confidence: number
+  recommendedActions: string[]
+}
+
+export interface AIMessageRequest {
+  context: {
+    parentId?: string
+    paymentId?: string
+    contractId?: string
+    messageType: 'reminder' | 'welcome' | 'follow_up' | 'overdue' | 'renewal' | 'general'
+    tone: 'friendly' | 'professional' | 'urgent' | 'formal'
+    urgencyLevel: 1 | 2 | 3 | 4 | 5
+  }
+  customInstructions?: string
+  includePersonalization: boolean
+  templateId?: string
+}
+
+export interface AIAnalyticsInsight {
+  metric: string
+  trend: 'increasing' | 'decreasing' | 'stable'
+  significance: 'high' | 'medium' | 'low'
+  insight: string
+  recommendation: string
+  data: any[]
+}
+
+export interface AIConfigSettings {
+  enabled: boolean
+  autoPersonalization: boolean
+  riskAssessmentFrequency: 'daily' | 'weekly' | 'monthly'
+  insightGenerationLevel: 'basic' | 'detailed' | 'comprehensive'
+  workflowAutomation: boolean
+  approvalRequired: boolean
+  maxSuggestions: number
+}
+
+export interface AIStreamResponse {
+  id: string
+  type: 'content' | 'insight' | 'analysis' | 'recommendation'
+  status: 'streaming' | 'complete' | 'error'
+  content: string
+  metadata?: any
+}
