@@ -20,7 +20,14 @@ export async function GET(
     const contract = await prisma.contract.findUnique({
       where: { id: params.id },
       include: {
-        parent: true
+        parent: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        }
       }
     })
 
@@ -53,45 +60,36 @@ export async function PUT(
     const {
       status,
       templateType,
-      expiresAt,
       notes,
+      expiresAt,
       signedAt
     } = body
 
-    const updateData: any = {
-      updatedAt: new Date()
-    }
+    const updateData: any = {}
 
-    if (status !== undefined) {
-      updateData.status = status
-      if (status === 'signed' && !signedAt) {
-        updateData.signedAt = new Date()
-      }
-    }
-
+    if (status) updateData.status = status
     if (templateType !== undefined) updateData.templateType = templateType
-    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null
     if (notes !== undefined) updateData.notes = notes
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null
     if (signedAt !== undefined) updateData.signedAt = signedAt ? new Date(signedAt) : null
+
+    // If status is being set to 'signed' and no signedAt provided, set it to now
+    if (status === 'signed' && !signedAt) {
+      updateData.signedAt = new Date()
+    }
 
     const contract = await prisma.contract.update({
       where: { id: params.id },
       data: updateData,
       include: {
-        parent: true
+        parent: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
       }
     })
-
-    // Update parent's legacy contract fields for backward compatibility
-    if (status !== undefined) {
-      await prisma.parent.update({
-        where: { id: contract.parentId },
-        data: {
-          contractStatus: status,
-          contractExpiresAt: contract.expiresAt
-        }
-      })
-    }
 
     return NextResponse.json(contract)
   } catch (error) {
@@ -114,30 +112,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const contract = await prisma.contract.findUnique({
-      where: { id: params.id }
-    })
-
-    if (!contract) {
-      return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
-    }
-
+    // Delete the contract record
     await prisma.contract.delete({
       where: { id: params.id }
     })
 
-    // Update parent's legacy contract fields
-    await prisma.parent.update({
-      where: { id: contract.parentId },
-      data: {
-        contractUrl: null,
-        contractStatus: 'pending',
-        contractUploadedAt: null,
-        contractExpiresAt: null
-      }
-    })
+    // Note: In production, you might also want to delete the actual file
+    // For now, we'll just delete the database record
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Contract deleted successfully' 
+    })
   } catch (error) {
     console.error('Contract deletion error:', error)
     return NextResponse.json(

@@ -8,74 +8,75 @@ import { Input } from '../../../components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
 import { 
-  ArrowLeft, 
-  Search, 
-  Filter, 
-  Download,
+  ArrowLeft,
+  Search,
   Mail,
   Smartphone,
   MessageSquare,
-  Eye,
   Calendar,
   CheckCircle,
+  AlertCircle,
   Clock,
-  XCircle
+  ExternalLink
 } from 'lucide-react'
 import Link from 'next/link'
-import { MessageLogWithRelations } from '../../../lib/types'
+
+interface MessageLog {
+  id: string
+  subject?: string
+  body: string
+  channel: string
+  status: string
+  sentAt: string
+  deliveredAt?: string
+  readAt?: string
+  parent: {
+    name: string
+    email: string
+  }
+  template?: {
+    name: string
+    category: string
+  }
+  metadata?: {
+    draftId?: string
+    webUrl?: string
+  }
+}
 
 export default function MessageHistoryPage() {
-  const [messages, setMessages] = useState<MessageLogWithRelations[]>([])
+  const [messages, setMessages] = useState<MessageLog[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [channelFilter, setChannelFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [pagination, setPagination] = useState({
-    total: 0,
-    limit: 50,
-    offset: 0,
-    hasMore: false
-  })
 
   useEffect(() => {
     fetchMessages()
   }, [channelFilter, statusFilter])
 
-  const fetchMessages = async (offset = 0) => {
+  const fetchMessages = async () => {
     try {
-      const params = new URLSearchParams({
-        limit: pagination.limit.toString(),
-        offset: offset.toString()
-      })
+      const params = new URLSearchParams()
+      if (channelFilter !== 'all') params.append('channel', channelFilter)
+      if (statusFilter !== 'all') params.append('status', statusFilter)
 
-      if (channelFilter !== 'all') {
-        params.append('channel', channelFilter)
-      }
-
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
-
-      const response = await fetch(`/api/messages?${params}`)
+      const response = await fetch(`/api/communication/history?${params}`)
       if (response.ok) {
         const data = await response.json()
         setMessages(data.messages)
-        setPagination(data.pagination)
       }
     } catch (error) {
-      console.error('Failed to fetch messages:', error)
+      console.error('Failed to fetch message history:', error)
     } finally {
       setLoading(false)
     }
   }
 
   const filteredMessages = messages.filter(message => {
-    const matchesSearch = 
-      message.parent?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.parent?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.body.toLowerCase().includes(searchTerm.toLowerCase())
-
+    const matchesSearch = message.parent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         message.parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (message.subject && message.subject.toLowerCase().includes(searchTerm.toLowerCase()))
     return matchesSearch
   })
 
@@ -85,8 +86,6 @@ export default function MessageHistoryPage() {
         return <Mail className="h-4 w-4" />
       case 'sms':
         return <Smartphone className="h-4 w-4" />
-      case 'both':
-        return <MessageSquare className="h-4 w-4" />
       default:
         return <MessageSquare className="h-4 w-4" />
     }
@@ -95,11 +94,12 @@ export default function MessageHistoryPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'sent':
-        return <CheckCircle className="h-4 w-4 text-green-600" />
       case 'delivered':
         return <CheckCircle className="h-4 w-4 text-green-600" />
+      case 'draft_created':
+        return <Clock className="h-4 w-4 text-blue-600" />
       case 'failed':
-        return <XCircle className="h-4 w-4 text-red-600" />
+        return <AlertCircle className="h-4 w-4 text-red-600" />
       default:
         return <Clock className="h-4 w-4 text-orange-600" />
     }
@@ -110,37 +110,13 @@ export default function MessageHistoryPage() {
       case 'sent':
       case 'delivered':
         return 'default'
+      case 'draft_created':
+        return 'secondary'
       case 'failed':
         return 'destructive'
       default:
-        return 'secondary'
+        return 'outline'
     }
-  }
-
-  const exportMessages = async () => {
-    try {
-      // In a real app, this would generate a CSV/Excel export
-      const csvContent = [
-        'Date,Parent,Email,Channel,Subject,Status',
-        ...filteredMessages.map(msg => 
-          `${new Date(msg.sentAt).toLocaleDateString()},${msg.parent?.name},${msg.parent?.email},${msg.channel},"${msg.subject}",${msg.status}`
-        )
-      ].join('\n')
-
-      const blob = new Blob([csvContent], { type: 'text/csv' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `message-history-${new Date().toISOString().split('T')[0]}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Failed to export messages:', error)
-    }
-  }
-
-  const loadMore = () => {
-    fetchMessages(pagination.offset + pagination.limit)
   }
 
   if (loading) {
@@ -159,76 +135,19 @@ export default function MessageHistoryPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
+            <Button asChild variant="outline" size="sm">
               <Link href="/communication">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Communication
               </Link>
             </Button>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Message History</h1>
               <p className="text-muted-foreground">
-                View all sent messages and their delivery status
+                View all sent and drafted messages
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={exportMessages}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pagination.total}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Delivered</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {messages.filter(m => m.status === 'sent' || m.status === 'delivered').length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Failed</CardTitle>
-              <XCircle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                {messages.filter(m => m.status === 'failed').length}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">This Month</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {messages.filter(m => {
-                  const messageDate = new Date(m.sentAt)
-                  const now = new Date()
-                  return messageDate.getMonth() === now.getMonth() && 
-                         messageDate.getFullYear() === now.getFullYear()
-                }).length}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Filters */}
@@ -239,7 +158,7 @@ export default function MessageHistoryPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
-                    placeholder="Search messages by parent name, email, or content..."
+                    placeholder="Search by parent name, email, or subject..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -263,6 +182,7 @@ export default function MessageHistoryPage() {
                 <option value="all">All Status</option>
                 <option value="sent">Sent</option>
                 <option value="delivered">Delivered</option>
+                <option value="draft_created">Draft Created</option>
                 <option value="failed">Failed</option>
               </select>
             </div>
@@ -270,77 +190,72 @@ export default function MessageHistoryPage() {
         </Card>
 
         {/* Messages List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Message History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredMessages.length > 0 ? (
-                <>
-                  {filteredMessages.map((message) => (
-                    <div key={message.id} className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start space-x-4 flex-1">
-                        <div className="flex items-center space-x-2">
+        <div className="space-y-4">
+          {filteredMessages.length > 0 ? (
+            filteredMessages.map((message) => (
+              <Card key={message.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={getStatusVariant(message.status)} className="flex items-center space-x-1">
                           {getStatusIcon(message.status)}
-                          <Badge variant="outline" className="flex items-center space-x-1">
-                            {getChannelIcon(message.channel)}
-                            <span>{message.channel}</span>
+                          <span className="capitalize">{message.status.replace('_', ' ')}</span>
+                        </Badge>
+                        <Badge variant="outline" className="flex items-center space-x-1">
+                          {getChannelIcon(message.channel)}
+                          <span className="capitalize">{message.channel}</span>
+                        </Badge>
+                        {message.template && (
+                          <Badge variant="outline" className="text-xs">
+                            {message.template.name}
                           </Badge>
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <p className="font-medium">{message.parent?.name}</p>
-                            <Badge variant={getStatusVariant(message.status)}>
-                              {message.status}
-                            </Badge>
-                            {message.template && (
-                              <Badge variant="outline">
-                                Template: {message.template.name}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground mb-1">{message.parent?.email}</p>
-                          {message.subject && (
-                            <p className="text-sm font-medium mb-1">{message.subject}</p>
-                          )}
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {message.body.substring(0, 150)}...
-                          </p>
-                        </div>
+                        )}
                       </div>
                       
-                      <div className="text-right ml-4">
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(message.sentAt).toLocaleDateString()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(message.sentAt).toLocaleTimeString()}
-                        </p>
-                        {message.deliveredAt && (
-                          <p className="text-xs text-green-600">
-                            Delivered: {new Date(message.deliveredAt).toLocaleTimeString()}
-                          </p>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium">{message.parent.name}</span>
+                          <span className="text-muted-foreground">({message.parent.email})</span>
+                        </div>
+                        {message.subject && (
+                          <p className="font-medium text-sm mt-1">{message.subject}</p>
                         )}
-                        {message.errorMessage && (
-                          <p className="text-xs text-red-600 mt-1">
-                            Error: {message.errorMessage}
-                          </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          {message.body.substring(0, 150)}...
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>Sent: {new Date(message.sentAt).toLocaleString()}</span>
+                        </div>
+                        {message.deliveredAt && (
+                          <div className="flex items-center space-x-1">
+                            <CheckCircle className="h-3 w-3" />
+                            <span>Delivered: {new Date(message.deliveredAt).toLocaleString()}</span>
+                          </div>
                         )}
                       </div>
                     </div>
-                  ))}
-                  
-                  {pagination.hasMore && (
-                    <div className="flex justify-center mt-6">
-                      <Button variant="outline" onClick={loadMore}>
-                        Load More Messages
-                      </Button>
+                    
+                    <div className="flex items-center space-x-2 ml-4">
+                      {message.metadata?.webUrl && (
+                        <Button asChild variant="outline" size="sm">
+                          <a href={message.metadata.webUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </>
-              ) : (
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
                 <div className="text-center py-12">
                   <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No messages found</h3>
@@ -357,10 +272,10 @@ export default function MessageHistoryPage() {
                     </Link>
                   </Button>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </AppLayout>
   )

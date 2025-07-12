@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { TemplateWithRelations } from '../../lib/types'
+import { toast } from 'sonner'
 
 export default function CommunicationPage() {
   const [templates, setTemplates] = useState<TemplateWithRelations[]>([])
@@ -113,6 +114,16 @@ export default function CommunicationPage() {
     }
   }
 
+  const handleQuickDraft = async (template: TemplateWithRelations) => {
+    try {
+      // For quick draft, we'll redirect to the send page with the template pre-selected
+      window.location.href = `/communication/send?templateId=${template.id}`
+    } catch (error) {
+      console.error('Failed to create quick draft:', error)
+      toast.error('Failed to create draft')
+    }
+  }
+
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.subject.toLowerCase().includes(searchTerm.toLowerCase())
@@ -176,6 +187,12 @@ export default function CommunicationPage() {
             >
               <Wand2 className="mr-2 h-4 w-4" />
               AI Generate
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/communication/history">
+                <Eye className="mr-2 h-4 w-4" />
+                Message History
+              </Link>
             </Button>
             <Button asChild variant="outline">
               <Link href="/communication/send">
@@ -313,10 +330,11 @@ export default function CommunicationPage() {
                           <Edit className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button asChild size="sm">
-                        <Link href={`/communication/send?templateId=${template.id}`}>
-                          <Send className="h-4 w-4" />
-                        </Link>
+                      <Button 
+                        size="sm"
+                        onClick={() => handleQuickDraft(template)}
+                      >
+                        <Send className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

@@ -1,118 +1,98 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '../../../components/app-layout'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Textarea } from '../../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { 
-  ArrowLeft, 
-  Upload, 
+  ArrowLeft,
+  Upload,
   FileText,
-  AlertTriangle,
-  CheckCircle,
-  X
+  Calendar,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react'
 import Link from 'next/link'
-import { ParentWithRelations } from '../../../lib/types'
+import { toast } from 'sonner'
 
-export default function ContractUploadPage() {
+interface Parent {
+  id: string
+  name: string
+  email: string
+}
+
+function ContractUploadPageContent() {
   const router = useRouter()
-  const [parents, setParents] = useState<ParentWithRelations[]>([])
-  const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
-
-  // Form fields
-  const [selectedParentId, setSelectedParentId] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const searchParams = useSearchParams()
+  const parentId = searchParams.get('parentId')
+  
+  const [parents, setParents] = useState<Parent[]>([])
+  const [selectedParentId, setSelectedParentId] = useState(parentId || '')
+  const [file, setFile] = useState<File | null>(null)
   const [templateType, setTemplateType] = useState('')
-  const [expiresAt, setExpiresAt] = useState('')
   const [notes, setNotes] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchParents = async () => {
-      try {
-        const response = await fetch('/api/parents')
-        if (response.ok) {
-          const data = await response.json()
-          setParents(data.filter((p: ParentWithRelations) => p.status === 'active'))
-        }
-      } catch (error) {
-        console.error('Failed to fetch parents:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchParents()
   }, [])
 
-  const handleFileSelect = (file: File) => {
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
-    if (!allowedTypes.includes(file.type)) {
-      alert('Invalid file type. Only PDF and image files are allowed.')
-      return
-    }
-
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size too large. Maximum size is 10MB.')
-      return
-    }
-
-    setSelectedFile(file)
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) {
-      handleFileSelect(files[0])
+  const fetchParents = async () => {
+    try {
+      const response = await fetch('/api/parents')
+      if (response.ok) {
+        const data = await response.json()
+        setParents(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch parents:', error)
+      toast.error('Failed to load parents')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(true)
-  }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (selectedFile) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+      if (!allowedTypes.includes(selectedFile.type)) {
+        toast.error('Invalid file type. Only PDF and Word documents are allowed.')
+        return
+      }
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragActive(false)
-  }
+      // Validate file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024 // 10MB
+      if (selectedFile.size > maxSize) {
+        toast.error('File size too large. Maximum size is 10MB.')
+        return
+      }
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      handleFileSelect(files[0])
+      setFile(selectedFile)
     }
-  }
-
-  const removeFile = () => {
-    setSelectedFile(null)
   }
 
   const handleUpload = async () => {
-    if (!selectedFile || !selectedParentId) {
-      alert('Please select a file and parent')
+    if (!file || !selectedParentId) {
+      toast.error('Please select a file and parent')
       return
     }
 
     setUploading(true)
     try {
       const formData = new FormData()
-      formData.append('file', selectedFile)
+      formData.append('file', file)
       formData.append('parentId', selectedParentId)
-      formData.append('templateType', templateType)
-      formData.append('expiresAt', expiresAt)
-      formData.append('notes', notes)
+      if (templateType) formData.append('templateType', templateType)
+      if (notes) formData.append('notes', notes)
+      if (expiresAt) formData.append('expiresAt', expiresAt)
 
       const response = await fetch('/api/contracts/upload', {
         method: 'POST',
@@ -120,26 +100,19 @@ export default function ContractUploadPage() {
       })
 
       if (response.ok) {
-        const contract = await response.json()
-        router.push(`/contracts/${contract.id}`)
+        const result = await response.json()
+        toast.success('Contract uploaded successfully')
+        router.push('/contracts')
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to upload contract')
+        toast.error(error.error || 'Failed to upload contract')
       }
     } catch (error) {
-      console.error('Failed to upload contract:', error)
-      alert('Failed to upload contract')
+      console.error('Upload error:', error)
+      toast.error('Failed to upload contract')
     } finally {
       setUploading(false)
     }
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   if (loading) {
@@ -158,215 +131,186 @@ export default function ContractUploadPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
+            <Button asChild variant="outline" size="sm">
               <Link href="/contracts">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Contracts
               </Link>
             </Button>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Upload Contract</h1>
               <p className="text-muted-foreground">
-                Upload a contract document for a parent
+                Upload a new contract document for a parent
               </p>
             </div>
           </div>
-          <Button 
-            onClick={handleUpload} 
-            disabled={uploading || !selectedFile || !selectedParentId}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {uploading ? 'Uploading...' : 'Upload Contract'}
-          </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* File Upload */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upload File</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {!selectedFile ? (
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                      dragActive 
-                        ? 'border-orange-500 bg-orange-50' 
-                        : 'border-muted-foreground/25 hover:border-orange-500 hover:bg-orange-50'
-                    }`}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                  >
-                    <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Drop your contract here</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Or click to browse and select a file
-                    </p>
-                    <Button variant="outline" onClick={() => document.getElementById('file-input')?.click()}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Choose File
-                    </Button>
-                    <input
-                      id="file-input"
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={handleFileInput}
-                      className="hidden"
-                    />
-                    <p className="text-xs text-muted-foreground mt-4">
-                      Accepted formats: PDF, JPG, PNG (Max 10MB)
-                    </p>
-                  </div>
-                ) : (
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-8 w-8 text-blue-600" />
-                        <div>
-                          <p className="font-medium">{selectedFile.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatFileSize(selectedFile.size)}
-                          </p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={removeFile}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="mt-3 flex items-center space-x-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-600">File ready for upload</span>
+        <div className="max-w-2xl space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Contract Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Parent *</label>
+                <select
+                  value={selectedParentId}
+                  onChange={(e) => setSelectedParentId(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
+                  required
+                >
+                  <option value="">Select a parent...</option>
+                  {parents.map((parent) => (
+                    <option key={parent.id} value={parent.id}>
+                      {parent.name} ({parent.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Contract File *</label>
+                <div className="mt-1">
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".pdf,.doc,.docx"
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Supported formats: PDF, DOC, DOCX (Max size: 10MB)
+                  </p>
+                </div>
+                {file && (
+                  <div className="mt-2 p-2 bg-muted rounded-md">
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm">{file.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
 
-            {/* File Requirements */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-orange-600" />
-                  <span>Upload Requirements</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-sm space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>PDF files for signed contracts</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>Image files (JPG, PNG) for photos/scans</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>Maximum file size: 10MB</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>Clear, readable documents only</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <div>
+                <label className="text-sm font-medium">Template Type</label>
+                <select
+                  value={templateType}
+                  onChange={(e) => setTemplateType(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
+                >
+                  <option value="">Select template type...</option>
+                  <option value="seasonal">Seasonal</option>
+                  <option value="annual">Annual</option>
+                  <option value="tournament">Tournament</option>
+                  <option value="camp">Camp</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
 
-          {/* Contract Details */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Contract Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Parent *</label>
-                  <select
-                    value={selectedParentId}
-                    onChange={(e) => setSelectedParentId(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  >
-                    <option value="">Select a parent</option>
-                    {parents.map((parent) => (
-                      <option key={parent.id} value={parent.id}>
-                        {parent.name} ({parent.email})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Template Type</label>
-                  <select
-                    value={templateType}
-                    onChange={(e) => setTemplateType(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  >
-                    <option value="">Select template type</option>
-                    <option value="seasonal">Seasonal Program</option>
-                    <option value="annual">Annual Program</option>
-                    <option value="tournament">Tournament</option>
-                    <option value="camp">Basketball Camp</option>
-                    <option value="custom">Custom Agreement</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Expiration Date</label>
+              <div>
+                <label className="text-sm font-medium">Expiry Date</label>
+                <div className="relative mt-1">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     type="date"
                     value={expiresAt}
                     onChange={(e) => setExpiresAt(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    When this contract expires (optional)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Notes</label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Additional notes about this contract..."
-                    rows={3}
+                    className="pl-10"
                   />
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Optional: Set when this contract expires
+                </p>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Next Steps</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-sm space-y-2">
-                  <div className="flex items-start space-x-2">
-                    <span className="flex-shrink-0 w-5 h-5 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
-                    <span>Contract will be uploaded with "Pending" status</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <span className="flex-shrink-0 w-5 h-5 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
-                    <span>Review the contract details and content</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <span className="flex-shrink-0 w-5 h-5 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
-                    <span>Update status to "Signed" when completed</span>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <span className="flex-shrink-0 w-5 h-5 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
-                    <span>Set up reminders for contract renewal</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <div>
+                <label className="text-sm font-medium">Notes</label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add any notes about this contract..."
+                  rows={3}
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 pt-4">
+                <Button
+                  onClick={handleUpload}
+                  disabled={uploading || !file || !selectedParentId}
+                  className="flex-1"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Contract
+                    </>
+                  )}
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/contracts">Cancel</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Upload Guidelines */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <AlertCircle className="h-4 w-4" />
+                Upload Guidelines
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="text-sm space-y-2 text-muted-foreground">
+                <li className="flex items-start space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>Only PDF and Word documents (.pdf, .doc, .docx) are accepted</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>Maximum file size is 10MB</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>Make sure the contract is complete and ready for signature</span>
+                </li>
+                <li className="flex items-start space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <span>Set an expiry date to track contract validity</span>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>
+  )
+}
+
+export default function ContractUploadPage() {
+  return (
+    <Suspense fallback={
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        </div>
+      </AppLayout>
+    }>
+      <ContractUploadPageContent />
+    </Suspense>
   )
 }

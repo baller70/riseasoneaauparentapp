@@ -6,7 +6,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '../../../lib/auth'
 import { prisma } from '../../../lib/db'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -14,22 +14,63 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+    const status = searchParams.get('status')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const offset = parseInt(searchParams.get('offset') || '0')
+
+    const where: any = {}
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ]
+    }
+
+    if (status && status !== 'all') {
+      where.status = status
+    }
+
     const parents = await prisma.parent.findMany({
+      where,
       include: {
-        paymentPlans: {
-          include: {
-            payments: true
-          }
+        payments: {
+          where: { status: 'overdue' },
+          select: { id: true, amount: true, dueDate: true }
         },
-        payments: true,
-        messageLogs: true
+        contracts: {
+          where: { status: 'pending' },
+          select: { id: true, originalName: true }
+        },
+        _count: {
+          select: {
+            payments: true,
+            contracts: true,
+            messageLogs: true
+          }
+        }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: [
+        { status: 'asc' },
+        { name: 'asc' }
+      ],
+      take: limit,
+      skip: offset
     })
 
-    return NextResponse.json(parents)
+    const total = await prisma.parent.count({ where })
+
+    return NextResponse.json({
+      parents,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasMore: offset + limit < total
+      }
+    })
   } catch (error) {
     console.error('Parents fetch error:', error)
     return NextResponse.json(
@@ -58,29 +99,29 @@ export async function POST(request: Request) {
       notes
     } = body
 
-    // Check if parent with this email already exists
+    if (!name || !email) {
+      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 })
+    }
+
+    // Check if email already exists
     const existingParent = await prisma.parent.findUnique({
       where: { email }
     })
 
     if (existingParent) {
-      return NextResponse.json(
-        { error: 'Parent with this email already exists' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'A parent with this email already exists' }, { status: 400 })
     }
 
     const parent = await prisma.parent.create({
       data: {
         name,
         email,
-        phone,
-        address,
-        emergencyContact,
-        emergencyPhone,
-        notes,
-        status: 'active',
-        contractStatus: 'pending'
+        phone: phone || null,
+        address: address || null,
+        emergencyContact: emergencyContact || null,
+        emergencyPhone: emergencyPhone || null,
+        notes: notes || null,
+        status: 'active'
       }
     })
 

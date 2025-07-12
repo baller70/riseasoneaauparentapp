@@ -5,130 +5,136 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AppLayout } from '../../../components/app-layout'
 import { Button } from '../../../components/ui/button'
+import { Input } from '../../../components/ui/input'
+import { Textarea } from '../../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Badge } from '../../../components/ui/badge'
-import { Separator } from '../../../components/ui/separator'
 import { 
-  ArrowLeft, 
-  Download, 
-  Edit, 
-  Trash2,
+  ArrowLeft,
   FileText,
+  Download,
+  Edit,
+  Save,
   Calendar,
   User,
+  Mail,
+  Phone,
+  ExternalLink,
   CheckCircle,
   Clock,
-  AlertTriangle,
-  Eye
+  AlertTriangle
 } from 'lucide-react'
 import Link from 'next/link'
-import { ContractWithRelations } from '../../../lib/types'
+import { toast } from 'sonner'
 
-export default function ContractDetailPage() {
+interface Contract {
+  id: string
+  fileName: string
+  originalName: string
+  fileUrl: string
+  fileSize: number
+  mimeType: string
+  status: string
+  uploadedAt: string
+  signedAt?: string
+  expiresAt?: string
+  templateType?: string
+  version: string
+  notes?: string
+  parent: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+  }
+}
+
+export default function ContractViewPage() {
   const params = useParams()
   const router = useRouter()
-  const [contract, setContract] = useState<ContractWithRelations | null>(null)
+  const contractId = params.id as string
+  
+  const [contract, setContract] = useState<Contract | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [status, setStatus] = useState('')
+  const [templateType, setTemplateType] = useState('')
+  const [notes, setNotes] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
-    const fetchContract = async () => {
-      try {
-        const response = await fetch(`/api/contracts/${params.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          setContract(data)
-        } else {
-          router.push('/contracts')
-        }
-      } catch (error) {
-        console.error('Failed to fetch contract:', error)
+    fetchContract()
+  }, [contractId])
+
+  const fetchContract = async () => {
+    try {
+      const response = await fetch(`/api/contracts/${contractId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setContract(data)
+        setStatus(data.status)
+        setTemplateType(data.templateType || '')
+        setNotes(data.notes || '')
+        setExpiresAt(data.expiresAt ? new Date(data.expiresAt).toISOString().split('T')[0] : '')
+      } else {
+        toast.error('Contract not found')
         router.push('/contracts')
-      } finally {
-        setLoading(false)
       }
+    } catch (error) {
+      console.error('Failed to fetch contract:', error)
+      toast.error('Failed to load contract')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    if (params.id) {
-      fetchContract()
-    }
-  }, [params.id, router])
-
-  const updateContractStatus = async (newStatus: string) => {
+  const handleSave = async () => {
     if (!contract) return
 
-    setUpdating(true)
+    setSaving(true)
     try {
-      const response = await fetch(`/api/contracts/${contract.id}`, {
+      const response = await fetch(`/api/contracts/${contractId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          status: newStatus,
-          signedAt: newStatus === 'signed' ? new Date().toISOString() : null
+          status,
+          templateType: templateType || null,
+          notes: notes || null,
+          expiresAt: expiresAt || null
         })
       })
 
       if (response.ok) {
         const updatedContract = await response.json()
         setContract(updatedContract)
+        setEditing(false)
+        toast.success('Contract updated successfully')
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to update contract')
+        toast.error(error.error || 'Failed to update contract')
       }
     } catch (error) {
-      console.error('Failed to update contract:', error)
-      alert('Failed to update contract')
+      console.error('Update error:', error)
+      toast.error('Failed to update contract')
     } finally {
-      setUpdating(false)
+      setSaving(false)
     }
-  }
-
-  const deleteContract = async () => {
-    if (!contract || !confirm('Are you sure you want to delete this contract? This action cannot be undone.')) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/contracts/${contract.id}`, {
-        method: 'DELETE'
-      })
-
-      if (response.ok) {
-        router.push('/contracts')
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to delete contract')
-      }
-    } catch (error) {
-      console.error('Failed to delete contract:', error)
-      alert('Failed to delete contract')
-    }
-  }
-
-  const downloadContract = () => {
-    if (!contract?.fileUrl) return
-
-    // Create a temporary link and trigger download
-    const link = document.createElement('a')
-    link.href = contract.fileUrl
-    link.download = contract.originalName || contract.fileName || 'contract.pdf'
-    link.click()
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'signed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />
+        return <CheckCircle className="h-5 w-5 text-green-600" />
       case 'pending':
-        return <Clock className="h-4 w-4 text-orange-600" />
+        return <Clock className="h-5 w-5 text-orange-600" />
       case 'expired':
-        return <AlertTriangle className="h-4 w-4 text-red-600" />
       case 'rejected':
-        return <AlertTriangle className="h-4 w-4 text-red-600" />
+        return <AlertTriangle className="h-5 w-5 text-red-600" />
       default:
-        return <FileText className="h-4 w-4 text-muted-foreground" />
+        return <FileText className="h-5 w-5 text-muted-foreground" />
     }
   }
 
@@ -146,14 +152,6 @@ export default function ContractDetailPage() {
     }
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
   if (loading) {
     return (
       <AppLayout>
@@ -168,10 +166,8 @@ export default function ContractDetailPage() {
     return (
       <AppLayout>
         <div className="text-center py-12">
+          <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Contract not found</h3>
-          <p className="text-muted-foreground mb-4">
-            The contract you're looking for doesn't exist or has been deleted.
-          </p>
           <Button asChild>
             <Link href="/contracts">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -189,10 +185,10 @@ export default function ContractDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
+            <Button asChild variant="outline" size="sm">
               <Link href="/contracts">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Contracts
               </Link>
             </Button>
             <div>
@@ -203,208 +199,215 @@ export default function ContractDetailPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={downloadContract}>
-              <Download className="mr-2 h-4 w-4" />
-              Download
+            <Button
+              variant="outline"
+              onClick={() => window.open(contract.fileUrl, '_blank')}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View File
             </Button>
-            <Button variant="destructive" onClick={deleteContract}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+            <Button
+              variant="outline"
+              onClick={() => setEditing(!editing)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              {editing ? 'Cancel' : 'Edit'}
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Main Content */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Contract Preview */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Contract Information */}
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Contract Document</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Contract Information
+                  </div>
+                  <Badge variant={getStatusVariant(contract.status)} className="flex items-center space-x-1">
+                    {getStatusIcon(contract.status)}
+                    <span className="capitalize">{contract.status}</span>
+                  </Badge>
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg p-6 text-center bg-muted/50">
-                  <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">{contract.originalName}</h3>
-                  <p className="text-muted-foreground mb-4">{formatFileSize(contract.fileSize)}</p>
-                  <div className="flex items-center justify-center space-x-2">
-                    <Button variant="outline" onClick={downloadContract}>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
-                    </Button>
-                    <Button variant="outline">
-                      <Eye className="mr-2 h-4 w-4" />
-                      View
-                    </Button>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">File Name</label>
+                    <p className="text-sm text-muted-foreground mt-1">{contract.originalName}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">File Size</label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {(contract.fileSize / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Uploaded</label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {new Date(contract.uploadedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Version</label>
+                    <p className="text-sm text-muted-foreground mt-1">{contract.version}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Status Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Status Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Current Status</span>
-                    <Badge variant={getStatusVariant(contract.status)} className="flex items-center space-x-1">
-                      {getStatusIcon(contract.status)}
-                      <span className="capitalize">{contract.status}</span>
-                    </Badge>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium">Update Status</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {contract.status !== 'pending' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => updateContractStatus('pending')}
-                          disabled={updating}
-                        >
-                          Mark as Pending
-                        </Button>
-                      )}
-                      {contract.status !== 'signed' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => updateContractStatus('signed')}
-                          disabled={updating}
-                        >
-                          Mark as Signed
-                        </Button>
-                      )}
-                      {contract.status !== 'expired' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => updateContractStatus('expired')}
-                          disabled={updating}
-                        >
-                          Mark as Expired
-                        </Button>
-                      )}
-                      {contract.status !== 'rejected' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => updateContractStatus('rejected')}
-                          disabled={updating}
-                        >
-                          Mark as Rejected
-                        </Button>
-                      )}
+                {editing ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Status</label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="signed">Signed</option>
+                        <option value="expired">Expired</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
                     </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Template Type</label>
+                      <select
+                        value={templateType}
+                        onChange={(e) => setTemplateType(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
+                      >
+                        <option value="">Select template type...</option>
+                        <option value="seasonal">Seasonal</option>
+                        <option value="annual">Annual</option>
+                        <option value="tournament">Tournament</option>
+                        <option value="camp">Camp</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Expiry Date</label>
+                      <Input
+                        type="date"
+                        value={expiresAt}
+                        onChange={(e) => setExpiresAt(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Notes</label>
+                      <Textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Add notes about this contract..."
+                        rows={3}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="w-full"
+                    >
+                      {saving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    {contract.templateType && (
+                      <div>
+                        <label className="text-sm font-medium">Template Type</label>
+                        <p className="text-sm text-muted-foreground mt-1 capitalize">
+                          {contract.templateType}
+                        </p>
+                      </div>
+                    )}
+
+                    {contract.expiresAt && (
+                      <div>
+                        <label className="text-sm font-medium">Expires</label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {new Date(contract.expiresAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+
+                    {contract.signedAt && (
+                      <div>
+                        <label className="text-sm font-medium">Signed</label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {new Date(contract.signedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+
+                    {contract.notes && (
+                      <div>
+                        <label className="text-sm font-medium">Notes</label>
+                        <p className="text-sm text-muted-foreground mt-1">{contract.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
-
-            {/* Notes */}
-            {contract.notes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Notes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm whitespace-pre-wrap">{contract.notes}</p>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Parent Information */}
+          {/* Parent Information */}
+          <div>
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
+                <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  <span>Parent Information</span>
+                  Parent Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Name</label>
-                  <p className="font-medium">{contract.parent.name}</p>
+                  <label className="text-sm font-medium">Name</label>
+                  <p className="text-sm text-muted-foreground mt-1">{contract.parent.name}</p>
                 </div>
+
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Email</label>
-                  <p className="text-sm">{contract.parent.email}</p>
+                  <label className="text-sm font-medium">Email</label>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">{contract.parent.email}</p>
+                  </div>
                 </div>
-                <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href={`/parents/${contract.parent.id}`}>
-                    View Parent Profile
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
 
-            {/* Contract Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="h-5 w-5" />
-                  <span>Contract Information</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Template Type</span>
-                  <span className="text-sm font-medium capitalize">
-                    {contract.templateType || 'Not specified'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Version</span>
-                  <span className="text-sm font-medium">{contract.version}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">File Size</span>
-                  <span className="text-sm font-medium">{formatFileSize(contract.fileSize)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">File Type</span>
-                  <span className="text-sm font-medium">{contract.mimeType}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Important Dates */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>Important Dates</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Uploaded</span>
-                  <span className="text-sm">{new Date(contract.uploadedAt).toLocaleDateString()}</span>
-                </div>
-                {contract.signedAt && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Signed</span>
-                    <span className="text-sm">{new Date(contract.signedAt).toLocaleDateString()}</span>
+                {contract.parent.phone && (
+                  <div>
+                    <label className="text-sm font-medium">Phone</label>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">{contract.parent.phone}</p>
+                    </div>
                   </div>
                 )}
-                {contract.expiresAt && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Expires</span>
-                    <span className="text-sm">{new Date(contract.expiresAt).toLocaleDateString()}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last Updated</span>
-                  <span className="text-sm">{new Date(contract.updatedAt).toLocaleDateString()}</span>
+
+                <div className="pt-4 border-t">
+                  <Button asChild variant="outline" className="w-full">
+                    <Link href={`/parents/${contract.parent.id}`}>
+                      <User className="mr-2 h-4 w-4" />
+                      View Parent Profile
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

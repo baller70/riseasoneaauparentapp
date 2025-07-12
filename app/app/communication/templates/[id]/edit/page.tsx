@@ -8,124 +8,138 @@ import { Button } from '../../../../../components/ui/button'
 import { Input } from '../../../../../components/ui/input'
 import { Textarea } from '../../../../../components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../../components/ui/card'
-import { Badge } from '../../../../../components/ui/badge'
-import { Switch } from '../../../../../components/ui/switch'
 import { 
-  ArrowLeft, 
-  Save, 
-  Eye,
+  ArrowLeft,
+  Save,
   Mail,
   Smartphone,
-  MessageSquare
+  MessageSquare,
+  Trash2
 } from 'lucide-react'
 import Link from 'next/link'
-import { TemplateWithRelations } from '../../../../../lib/types'
+import { toast } from 'sonner'
+
+interface Template {
+  id: string
+  name: string
+  subject: string
+  body: string
+  category: string
+  channel: string
+  variables: string[]
+  isAiGenerated: boolean
+  usageCount: number
+}
 
 export default function EditTemplatePage() {
   const params = useParams()
   const router = useRouter()
-  const [template, setTemplate] = useState<TemplateWithRelations | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const templateId = params.id as string
   
-  // Form fields
+  const [template, setTemplate] = useState<Template | null>(null)
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [category, setCategory] = useState('general')
   const [channel, setChannel] = useState('email')
-  const [isActive, setIsActive] = useState(true)
-  const [detectedVariables, setDetectedVariables] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchTemplate = async () => {
-      try {
-        const response = await fetch(`/api/templates/${params.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          setTemplate(data)
-          
-          // Populate form fields
-          setName(data.name)
-          setSubject(data.subject)
-          setBody(data.body)
-          setCategory(data.category)
-          setChannel(data.channel)
-          setIsActive(data.isActive)
-        } else {
-          router.push('/communication')
-        }
-      } catch (error) {
-        console.error('Failed to fetch template:', error)
+    fetchTemplate()
+  }, [templateId])
+
+  const fetchTemplate = async () => {
+    try {
+      const response = await fetch(`/api/templates/${templateId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTemplate(data)
+        setName(data.name)
+        setSubject(data.subject)
+        setBody(data.body)
+        setCategory(data.category)
+        setChannel(data.channel)
+      } else {
+        toast.error('Template not found')
         router.push('/communication')
-      } finally {
-        setLoading(false)
       }
+    } catch (error) {
+      console.error('Failed to fetch template:', error)
+      toast.error('Failed to load template')
+    } finally {
+      setLoading(false)
     }
-
-    if (params.id) {
-      fetchTemplate()
-    }
-  }, [params.id, router])
-
-  // Detect variables in subject and body
-  useEffect(() => {
-    const variableRegex = /{([a-zA-Z_][a-zA-Z0-9_]*)}/g
-    const allText = `${subject} ${body}`
-    const matches = allText.match(variableRegex) || []
-    const variables = [...new Set(matches.map(match => match.slice(1, -1)))]
-    setDetectedVariables(variables)
-  }, [subject, body])
+  }
 
   const handleSave = async () => {
-    if (!name.trim() || !body.trim()) {
-      alert('Name and body are required')
+    if (!name.trim() || !subject.trim() || !body.trim()) {
+      toast.error('Please fill in all required fields')
       return
     }
 
     setSaving(true)
     try {
-      const response = await fetch(`/api/templates/${params.id}`, {
+      const response = await fetch(`/api/templates/${templateId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: name.trim(),
-          subject: subject.trim(),
-          body: body.trim(),
+          name,
+          subject,
+          body,
           category,
           channel,
-          isActive,
-          variables: detectedVariables
+          variables: extractVariables(body)
         })
       })
 
       if (response.ok) {
-        router.push(`/communication/templates/${params.id}`)
+        toast.success('Template updated successfully')
+        router.push('/communication')
       } else {
         const error = await response.json()
-        alert(error.error || 'Failed to update template')
+        toast.error(error.error || 'Failed to update template')
       }
     } catch (error) {
-      console.error('Failed to update template:', error)
-      alert('Failed to update template')
+      console.error('Template update error:', error)
+      toast.error('Failed to update template')
     } finally {
       setSaving(false)
     }
   }
 
-  const getChannelIcon = (channel: string) => {
-    switch (channel) {
-      case 'email':
-        return <Mail className="h-4 w-4" />
-      case 'sms':
-        return <Smartphone className="h-4 w-4" />
-      case 'both':
-        return <MessageSquare className="h-4 w-4" />
-      default:
-        return <MessageSquare className="h-4 w-4" />
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
+      return
     }
+
+    setDeleting(true)
+    try {
+      const response = await fetch(`/api/templates/${templateId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        toast.success('Template deleted successfully')
+        router.push('/communication')
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'Failed to delete template')
+      }
+    } catch (error) {
+      console.error('Template deletion error:', error)
+      toast.error('Failed to delete template')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const extractVariables = (text: string): string[] => {
+    const matches = text.match(/\{([^}]+)\}/g)
+    return matches ? matches.map(match => match.slice(1, -1)) : []
   }
 
   if (loading) {
@@ -160,187 +174,179 @@ export default function EditTemplatePage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
-              <Link href={`/communication/templates/${params.id}`}>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/communication">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                Back to Communication
               </Link>
             </Button>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Edit Template</h1>
               <p className="text-muted-foreground">
-                Update template content and settings
+                Modify template "{template.name}"
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button asChild variant="outline">
-              <Link href={`/communication/templates/${params.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                Preview
-              </Link>
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Template
+              </>
+            )}
+          </Button>
         </div>
 
-        {/* Form */}
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Template Content</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Template Name</label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter template name..."
-                  />
-                </div>
+        <div className="max-w-2xl space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Template Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Template Name *</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter template name..."
+                  className="mt-1"
+                />
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Subject Line</label>
-                  <Input
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Enter subject line..."
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Message Body</label>
-                  <Textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    placeholder="Enter your message here... Use {variableName} for dynamic content."
-                    rows={12}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Use curly braces for variables: {'{parentName}'}, {'{amount}'}, {'{dueDate}'}, etc.
-                  </p>
-                </div>
-
-                {detectedVariables.length > 0 && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Detected Variables</label>
-                    <div className="flex flex-wrap gap-2">
-                      {detectedVariables.map((variable) => (
-                        <Badge key={variable} variant="outline">
-                          {`{${variable}}`}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Template Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Category</label>
+                  <label className="text-sm font-medium">Category</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    className="w-full mt-1 px-3 py-2 border border-input rounded-md bg-background"
                   >
                     <option value="general">General</option>
                     <option value="welcome">Welcome</option>
                     <option value="reminder">Reminder</option>
                     <option value="overdue">Overdue</option>
                     <option value="confirmation">Confirmation</option>
-                    <option value="payment">Payment</option>
                   </select>
                 </div>
-
+                
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Channel</label>
-                  <select
-                    value={channel}
-                    onChange={(e) => setChannel(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                  >
-                    <option value="email">Email</option>
-                    <option value="sms">SMS</option>
-                    <option value="both">Both</option>
-                  </select>
-                  <div className="flex items-center space-x-2 mt-2">
-                    {getChannelIcon(channel)}
-                    <span className="text-sm text-muted-foreground capitalize">{channel}</span>
+                  <label className="text-sm font-medium">Channel</label>
+                  <div className="flex items-center space-x-4 mt-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        value="email"
+                        checked={channel === 'email'}
+                        onChange={(e) => setChannel(e.target.value)}
+                      />
+                      <Mail className="h-4 w-4" />
+                      <span className="text-sm">Email</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        value="sms"
+                        checked={channel === 'sms'}
+                        onChange={(e) => setChannel(e.target.value)}
+                      />
+                      <Smartphone className="h-4 w-4" />
+                      <span className="text-sm">SMS</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        value="both"
+                        checked={channel === 'both'}
+                        onChange={(e) => setChannel(e.target.value)}
+                      />
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="text-sm">Both</span>
+                    </label>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-medium">Active</label>
-                    <p className="text-xs text-muted-foreground">
-                      Inactive templates won't appear in template selection
-                    </p>
-                  </div>
-                  <Switch
-                    checked={isActive}
-                    onCheckedChange={setIsActive}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+              <div>
+                <label className="text-sm font-medium">Subject *</label>
+                <Input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Enter message subject..."
+                  className="mt-1"
+                />
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Template Usage</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Times Used</span>
-                  <span className="font-medium">{template.usageCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Messages Sent</span>
-                  <span className="font-medium">{template.messageLogs.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Created</span>
-                  <span className="text-sm">{new Date(template.createdAt).toLocaleDateString()}</span>
-                </div>
-              </CardContent>
-            </Card>
+              <div>
+                <label className="text-sm font-medium">Message Body *</label>
+                <Textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="Enter your message template..."
+                  rows={10}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use variables: {'{parentName}'}, {'{parentEmail}'}, {'{parentPhone}'}, {'{amount}'}, {'{dueDate}'}
+                </p>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Available Variables</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-2 text-xs">
-                  <div className="p-2 bg-muted rounded">
-                    <strong>{'{parentName}'}</strong> - Parent's full name
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <strong>{'{parentEmail}'}</strong> - Parent's email
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <strong>{'{programName}'}</strong> - Program name
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <strong>{'{amount}'}</strong> - Payment amount
-                  </div>
-                  <div className="p-2 bg-muted rounded">
-                    <strong>{'{dueDate}'}</strong> - Payment due date
+              {template.isAiGenerated && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    This template was originally generated by AI and has been used {template.usageCount} times.
+                  </p>
+                </div>
+              )}
+
+              {extractVariables(body).length > 0 && (
+                <div>
+                  <label className="text-sm font-medium">Detected Variables</label>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {extractVariables(body).map((variable, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                      >
+                        {'{' + variable + '}'}
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+
+              <div className="flex items-center space-x-2 pt-4">
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1"
+                >
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/communication">Cancel</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>

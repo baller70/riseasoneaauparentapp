@@ -21,13 +21,20 @@ export async function GET(
       where: { id: params.id },
       include: {
         messageLogs: {
+          take: 10,
+          orderBy: { sentAt: 'desc' },
           include: {
-            parent: true
-          },
-          orderBy: { sentAt: 'desc' }
+            parent: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
         },
-        scheduledMessages: {
-          orderBy: { scheduledFor: 'desc' }
+        versions: {
+          orderBy: { createdAt: 'desc' },
+          take: 5
         }
       }
     })
@@ -77,7 +84,7 @@ export async function PUT(
         category,
         channel,
         variables: variables || [],
-        isActive,
+        isActive: isActive !== undefined ? isActive : true,
         updatedAt: new Date()
       }
     })
@@ -103,26 +110,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if template is being used in scheduled messages
-    const scheduledMessages = await prisma.scheduledMessage.findMany({
-      where: { 
-        templateId: params.id,
-        status: 'scheduled'
+    // Soft delete by setting isActive to false
+    await prisma.template.update({
+      where: { id: params.id },
+      data: {
+        isActive: false,
+        updatedAt: new Date()
       }
     })
 
-    if (scheduledMessages.length > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete template with scheduled messages' },
-        { status: 400 }
-      )
-    }
-
-    await prisma.template.delete({
-      where: { id: params.id }
-    })
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: 'Template deleted successfully' })
   } catch (error) {
     console.error('Template deletion error:', error)
     return NextResponse.json(
