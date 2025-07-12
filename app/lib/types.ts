@@ -48,3 +48,53 @@ export interface RecentActivity {
   timestamp: Date
   parentName?: string
 }
+
+// Bulk upload types
+export interface BulkUploadParent {
+  name: string
+  email: string
+  phone?: string
+  address?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  notes?: string
+}
+
+export interface ValidationError {
+  row: number
+  field: string
+  message: string
+  value?: string
+}
+
+export interface BulkUploadValidation {
+  data: BulkUploadParent[]
+  errors: ValidationError[]
+  duplicates: {
+    email: string
+    rows: number[]
+    existsInDb: boolean
+  }[]
+  stats: {
+    totalRows: number
+    validRows: number
+    errorRows: number
+    duplicateRows: number
+  }
+}
+
+export interface BulkImportResult {
+  success: boolean
+  created: number
+  failed: number
+  errors: {
+    row: number
+    email: string
+    message: string
+  }[]
+  successfulParents: {
+    id: string
+    name: string
+    email: string
+  }[]
+}
