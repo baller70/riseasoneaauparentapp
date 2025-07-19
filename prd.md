@@ -183,8 +183,8 @@ Sarah is a program administrator for Rise as One Basketball Program who manages 
 - Clerk authentication service for secure user management and SSO
 - OpenAI API (GPT-4, GPT-3.5-turbo) for AI-powered features and content generation
 - Stripe payment processing API for secure financial transactions
-- Email service providers for automated communication delivery
-- SMS gateway integration for multi-channel messaging
+- Resend email API for automated communication delivery with React Email templates
+- SMS gateway integration (Twilio) for multi-channel messaging
 - File storage services for contract and document management
 - Backup and disaster recovery systems
 

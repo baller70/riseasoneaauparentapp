@@ -31,6 +31,15 @@ This development plan outlines the implementation strategy for the Rise as One B
 - Strong prompt engineering community and resources
 - Proven track record for business applications
 
+### Email Service: Resend
+**Why Resend?**
+- Modern email API with excellent deliverability rates
+- Built by the team behind React Email for developer experience
+- Simple, clean API with TypeScript support
+- Competitive pricing with generous free tier
+- Built-in email templates and React component support
+- Advanced analytics and webhook support
+
 ---
 
 ## Team Structure & Roles
@@ -70,7 +79,7 @@ This development plan outlines the implementation strategy for the Rise as One B
 ### AI & Integrations
 - **AI Services**: OpenAI API (GPT-4, GPT-3.5-turbo) for content generation and analysis
 - **Payments**: Stripe API
-- **Email**: SendGrid or similar
+- **Email & Notifications**: Resend (modern email API with excellent deliverability)
 - **SMS**: Twilio
 - **Monitoring**: Sentry, DataDog
 
@@ -287,10 +296,10 @@ This development plan outlines the implementation strategy for the Rise as One B
   - Add template preview and testing capabilities
 
 - [ ] **Multi-Channel Messaging** (Backend: 3 days)
-  - Integrate email service provider (SendGrid)
+  - Integrate Resend email API with React Email templates
   - Implement SMS integration (Twilio)
   - Build message queuing and delivery system
-  - Create delivery status tracking
+  - Create delivery status tracking with webhook handling
 
 - [ ] **Communication UI** (Frontend: 2 days)
   - Design message composition interface
@@ -689,7 +698,7 @@ This development plan outlines the implementation strategy for the Rise as One B
 
 ### Infrastructure & Tools
 - Development/Staging/Production hosting: $5K
-- Third-party services (Stripe, SendGrid, Twilio): $3K
+- Third-party services (Stripe, Resend, Twilio): $3K
 - OpenAI API usage (estimated): $1.5K
 - Clerk authentication service: $1K
 - Development tools and licenses: $1.5K
