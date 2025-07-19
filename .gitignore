@@ -20,3 +20,13 @@ out
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Development database
+app/prisma/dev.db
+app/prisma/dev.db-journal
+
+# IDE and development files
+.cursor/
+.clinerules/
+.mcp.json
+CLAUDE.md
