@@ -45,7 +45,7 @@ export default function ParentsPage() {
         const response = await fetch('/api/parents')
         if (response.ok) {
           const data = await response.json()
-          setParents(data)
+          setParents(data.parents || data)
         }
       } catch (error) {
         console.error('Failed to fetch parents:', error)

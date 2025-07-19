@@ -60,7 +60,7 @@ async function main() {
             emergencyPhone: '+1-555-0102',
             contractStatus: 'signed',
             status: 'active',
-            image: 'https://img.freepik.com/premium-photo/elegant-asian-female-professional-captivating-headshot-with-black-short-hair-chic-dress-whit_983420-165955.jpg?w=2000'
+            image: 'https://img.freepik.com/premium-photo/elegant-asian-female-professional-captivating-headshot-with-black-short-hair-chic-dress-whit_983420-165955.jpg?w=20000'
         },
         {
             name: 'Marcus Johnson',
@@ -264,7 +264,7 @@ async function main() {
             body: 'Dear {parentName},\n\nWelcome to the Rise as One Basketball Program! We\'re excited to have {childName} join our basketball family.\n\nYour payment plan has been set up for ${amount} per {frequency}. You can view your payment schedule in your parent portal.\n\nIf you have any questions, please don\'t hesitate to contact us.\n\nBest regards,\nRise as One Team',
             category: 'welcome',
             channel: 'email',
-            variables: ['parentName', 'childName', 'amount', 'frequency']
+            variables: 'parentName,childName,amount,frequency'
         },
         {
             name: 'Payment Reminder - 7 Days',
@@ -272,7 +272,7 @@ async function main() {
             body: 'Hi {parentName},\n\nThis is a friendly reminder that your payment of ${amount} is due on {dueDate}.\n\nYou can make your payment through our secure parent portal or contact us if you need assistance.\n\nThank you for your continued support!\n\nRise as One Team',
             category: 'reminder',
             channel: 'email',
-            variables: ['parentName', 'amount', 'dueDate']
+            variables: 'parentName,amount,dueDate'
         },
         {
             name: 'Payment Reminder - 1 Day',
@@ -280,7 +280,7 @@ async function main() {
             body: 'Dear {parentName},\n\nYour payment of ${amount} is due tomorrow ({dueDate}).\n\nPlease ensure your payment is submitted to avoid any late fees.\n\nPay now through your parent portal or contact us immediately if you need assistance.\n\nThank you,\nRise as One Team',
             category: 'reminder',
             channel: 'both',
-            variables: ['parentName', 'amount', 'dueDate']
+            variables: 'parentName,amount,dueDate'
         },
         {
             name: 'Payment Overdue Notice',
@@ -288,7 +288,7 @@ async function main() {
             body: 'Dear {parentName},\n\nYour payment of ${amount} was due on {dueDate} and is now overdue.\n\nPlease submit your payment immediately to avoid suspension from the program. A late fee of $25 may apply.\n\nContact us if you\'re experiencing financial difficulties - we\'re here to help.\n\nRise as One Administration',
             category: 'overdue',
             channel: 'both',
-            variables: ['parentName', 'amount', 'dueDate']
+            variables: 'parentName,amount,dueDate'
         },
         {
             name: 'Payment Confirmation',
@@ -296,7 +296,7 @@ async function main() {
             body: 'Hi {parentName},\n\nThank you! We\'ve received your payment of ${amount} on {paymentDate}.\n\nYour account is now up to date. Your next payment of ${nextAmount} is due on {nextDueDate}.\n\nAppreciate your prompt payment!\n\nRise as One Team',
             category: 'confirmation',
             channel: 'email',
-            variables: ['parentName', 'amount', 'paymentDate', 'nextAmount', 'nextDueDate']
+            variables: 'parentName,amount,paymentDate,nextAmount,nextDueDate'
         },
         {
             name: 'Practice Reminder',
@@ -304,7 +304,7 @@ async function main() {
             body: 'Hi {parentName},\n\nReminder: {childName} has basketball practice this {dayOfWeek} at {practiceTime}.\n\nLocation: Main Gym\nPlease ensure {childName} brings:\n- Basketball shoes\n- Water bottle\n- Practice jersey\n\nSee you there!\nCoach Mike',
             category: 'general',
             channel: 'sms',
-            variables: ['parentName', 'childName', 'practiceDate', 'dayOfWeek', 'practiceTime']
+            variables: 'parentName,childName,practiceDate,dayOfWeek,practiceTime'
         },
         {
             name: 'Game Day Announcement',
@@ -312,7 +312,7 @@ async function main() {
             body: 'Dear Rise as One families,\n\nGame day is here! {teamName} will be playing against {opponent}.\n\nGame Details:\nDate: {gameDate}\nTime: {gameTime}\nLocation: {gameLocation}\n\nCome cheer on our team! Let\'s rise as one!\n\nGo team!\nRise as One Coaching Staff',
             category: 'general',
             channel: 'email',
-            variables: ['teamName', 'opponent', 'gameDate', 'gameTime', 'gameLocation']
+            variables: 'teamName,opponent,gameDate,gameTime,gameLocation'
         },
         {
             name: 'Contract Renewal Notice',
@@ -320,7 +320,7 @@ async function main() {
             body: 'Dear {parentName},\n\nYour contract for the Rise as One Basketball Program expires on {expirationDate}.\n\nTo continue {childName}\'s participation in the program, please:\n1. Review the updated contract in your parent portal\n2. Sign and submit the renewal\n3. Update any payment plan preferences\n\nRenewal deadline: {renewalDeadline}\n\nContact us with any questions.\n\nRise as One Administration',
             category: 'contract',
             channel: 'email',
-            variables: ['parentName', 'childName', 'expirationDate', 'renewalDeadline']
+            variables: 'parentName,childName,expirationDate,renewalDeadline'
         }
     ]
 

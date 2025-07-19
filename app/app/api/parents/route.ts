@@ -36,6 +36,9 @@ export async function GET(request: Request) {
     const parents = await prisma.parent.findMany({
       where,
       include: {
+        paymentPlans: {
+          select: { id: true, type: true, status: true }
+        },
         payments: {
           where: { status: 'overdue' },
           select: { id: true, amount: true, dueDate: true }

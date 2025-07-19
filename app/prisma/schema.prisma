@@ -1,11 +1,10 @@
 generator client {
     provider = "prisma-client-js"
     binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
-    output = "/home/ubuntu/rise-as-one-manager/app/node_modules/.prisma/client"
 }
 
 datasource db {
-    provider = "postgresql"
+    provider = "sqlite"
     url      = env("DATABASE_URL")
 }
 
@@ -16,12 +15,12 @@ model Account {
     type              String
     provider          String
     providerAccountId String
-    refresh_token     String? @db.Text
-    access_token      String? @db.Text
+    refresh_token     String? 
+    access_token      String? 
     expires_at        Int?
     token_type        String?
     scope             String?
-    id_token          String? @db.Text
+    id_token          String? 
     session_state     String?
 
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -95,8 +94,8 @@ model PaymentPlan {
     id                   String    @id @default(cuid())
     parentId             String
     type                 String    // monthly, seasonal, custom, full
-    totalAmount          Decimal   @db.Decimal(10, 2)
-    installmentAmount    Decimal   @db.Decimal(10, 2)
+    totalAmount          Float
+    installmentAmount    Float
     installments         Int
     startDate            DateTime
     nextDueDate          DateTime?
@@ -122,7 +121,7 @@ model Payment {
     parentId         String
     paymentPlanId    String?
     dueDate          DateTime
-    amount           Decimal           @db.Decimal(10, 2)
+    amount           Float
     status           String            @default("pending") // pending, paid, overdue, failed, refunded
     stripeInvoiceId  String?           @unique
     stripePaymentId  String?           @unique
@@ -150,13 +149,13 @@ model Template {
     id              String             @id @default(cuid())
     name            String
     subject         String
-    body            String             @db.Text
+    body            String
     category        String             @default("general") // general, payment, reminder, welcome, etc.
     channel         String             @default("email") // email, sms, both
     isAiGenerated   Boolean            @default(false)
     isActive        Boolean            @default(true)
     usageCount      Int                @default(0)
-    variables       String[]           @default([]) // Template variables like {parentName}, {amount}, etc.
+    variables       String             @default("") // Template variables like {parentName}, {amount}, etc. (comma-separated)
     createdAt       DateTime           @default(now())
     updatedAt       DateTime           @updatedAt
     
@@ -177,7 +176,7 @@ model MessageLog {
     parentId    String
     templateId  String?
     subject     String?
-    body        String    @db.Text
+    body        String    
     channel     String    // email, sms
     status      String    @default("sent") // sent, failed, delivered, read
     sentAt      DateTime  @default(now())
@@ -227,9 +226,9 @@ model ScheduledMessage {
     id              String    @id @default(cuid())
     templateId      String?
     subject         String?
-    body            String    @db.Text
+    body            String    
     channel         String    // email, sms
-    recipients      String[]  // Array of parent IDs
+    recipients      String    // Comma-separated parent IDs
     scheduledFor    DateTime
     status          String    @default("scheduled") // scheduled, sent, failed, cancelled
     sentAt          DateTime?
@@ -253,7 +252,7 @@ model PaymentReminder {
     sentAt          DateTime?
     status          String    @default("scheduled") // scheduled, sent, failed
     templateId      String?
-    message         String    @db.Text
+    message         String    
     channel         String    @default("email") // email, sms
     createdAt       DateTime  @default(now())
     
@@ -268,7 +267,7 @@ model PaymentReminder {
 model SystemSettings {
     id          String   @id @default(cuid())
     key         String   @unique
-    value       String   @db.Text
+    value       String   
     description String?
     updatedAt   DateTime @updatedAt
     
@@ -299,7 +298,7 @@ model RecurringMessage {
     name              String
     templateId        String?
     subject           String?
-    body              String                @db.Text
+    body              String                
     channel           String                @default("email") // email, sms, both
     interval          String                // daily, weekly, monthly, custom
     intervalValue     Int                   @default(1) // Every X days/weeks/months
@@ -308,13 +307,13 @@ model RecurringMessage {
     audienceFilter    Json?                 // Additional filtering criteria
     startDate         DateTime              @default(now())
     endDate           DateTime?
-    stopConditions    String[]              @default([]) // user_response, payment_completion, manual_stop, max_messages
+    stopConditions    String                @default("") // user_response, payment_completion, manual_stop, max_messages (comma-separated)
     maxMessages       Int?                  // Maximum messages to send per recipient
     escalationRules   Json?                 // Rules for escalating urgency over time
     isActive          Boolean               @default(true)
     pausedAt          DateTime?
     pausedReason      String?
-    variables         String[]              @default([])
+    variables         String                @default("") // Comma-separated variables
     createdBy         String
     createdAt         DateTime              @default(now())
     updatedAt         DateTime              @updatedAt
@@ -527,13 +526,13 @@ model TemplateVersion {
     version              String              // 1.0, 1.1, 2.0, etc.
     name                 String
     subject              String
-    body                 String              @db.Text
+    body                 String              
     category             String
     channel              String
-    variables            String[]            @default([])
+    variables            String              @default("") // Comma-separated variables
     isAiGenerated        Boolean             @default(false)
-    aiPrompt             String?             @db.Text
-    changeDescription    String?             @db.Text
+    aiPrompt             String?             
+    changeDescription    String?             
     performanceScore     Float?              // 0-100 based on open rates, response rates, etc.
     usageCount           Int                 @default(0)
     successRate          Float?              // 0-100 based on desired outcomes
@@ -554,9 +553,9 @@ model TemplateImprovement {
     id                   String              @id @default(cuid())
     templateVersionId    String
     improvementType      String              // tone_adjustment, clarity_enhancement, personalization, effectiveness
-    originalText         String              @db.Text
-    improvedText         String              @db.Text
-    reason               String              @db.Text
+    originalText         String              
+    improvedText         String              
+    reason               String              
     confidence           Float               // 0-100 AI confidence in improvement
     accepted             Boolean             @default(false)
     acceptedAt           DateTime?
@@ -599,7 +598,7 @@ model AIRecommendation {
     type                 String              // payment_follow_up, contract_renewal, engagement_boost, risk_mitigation
     category             String              // communication, payment, contract, relationship
     title                String
-    description          String              @db.Text
+    description          String              
     priority             String              @default("medium") // low, medium, high, urgent
     confidence           Float               // 0-100 AI confidence in recommendation
     expectedImpact       String              // low, medium, high
@@ -638,7 +637,7 @@ model AIRecommendationAction {
     recommendationId     String
     actionType           String              // send_message, create_reminder, update_status, schedule_call, generate_content
     title                String
-    description          String              @db.Text
+    description          String              
     parameters           Json                // Action-specific parameters
     order                Int                 @default(1)
     isRequired           Boolean             @default(true)
@@ -661,7 +660,7 @@ model AIInsight {
     entityType           String              // parent, payment, contract, global
     entityId             String?
     title                String
-    summary              String              @db.Text
+    summary              String              
     score                Float?              // 0-100 numerical score when applicable
     confidence           Float               // 0-100 AI confidence
     impact               String              @default("medium") // low, medium, high
@@ -724,7 +723,7 @@ model JobLog {
     id                   String              @id @default(cuid())
     jobId                String
     level                String              // info, warning, error, debug
-    message              String              @db.Text
+    message              String              
     data                 Json?               // Additional structured data
     timestamp            DateTime            @default(now())
     
