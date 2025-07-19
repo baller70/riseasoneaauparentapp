@@ -8,7 +8,7 @@
 ### 1.2 Product summary
 The Rise as One Basketball Program Management App is a comprehensive web-based platform designed to streamline the administration of youth basketball programs. The application serves as a centralized hub for managing parent relationships, payment processing, contract administration, and communication workflows.
 
-Built with modern web technologies including Next.js, Prisma, and AI integration, the platform provides intelligent automation features that enhance operational efficiency. The system incorporates advanced AI capabilities for risk assessment, personalized communication generation, and predictive analytics to help program administrators make data-driven decisions.
+Built with modern web technologies including Next.js, Prisma, Clerk authentication, and OpenAI integration, the platform provides intelligent automation features that enhance operational efficiency. The system incorporates advanced AI capabilities powered by OpenAI's GPT models for risk assessment, personalized communication generation, and predictive analytics to help program administrators make data-driven decisions.
 
 The application addresses the complex needs of basketball program management by providing tools for parent onboarding, payment plan management, contract lifecycle management, automated communication workflows, and comprehensive reporting and analytics.
 
@@ -180,8 +180,9 @@ Sarah is a program administrator for Rise as One Basketball Program who manages 
 
 ## 8. Technical considerations
 ### 8.1 Integration points
+- Clerk authentication service for secure user management and SSO
+- OpenAI API (GPT-4, GPT-3.5-turbo) for AI-powered features and content generation
 - Stripe payment processing API for secure financial transactions
-- AI/ML services for risk assessment and content generation
 - Email service providers for automated communication delivery
 - SMS gateway integration for multi-channel messaging
 - File storage services for contract and document management
@@ -204,10 +205,10 @@ Sarah is a program administrator for Rise as One Basketball Program who manages 
 - Load balancing capabilities for high-traffic periods
 
 ### 8.4 Potential challenges
-- AI service reliability and fallback mechanisms
-- Large dataset performance optimization
-- Complex payment integration error handling
-- Multi-tenant data isolation and security
+- OpenAI API rate limiting and cost management for high-volume usage
+- Large dataset performance optimization with AI processing
+- Complex payment integration error handling with Stripe
+- Clerk authentication integration with existing user workflows
 - Real-time notification delivery reliability
 - Cross-browser compatibility for diverse user environments
 
@@ -233,13 +234,13 @@ Sarah is a program administrator for Rise as One Basketball Program who manages 
 
 ### 10.1 User authentication and access control
 - **ID**: US-001
-- **Description**: As an administrator, I want to securely log into the system using my email and password so that I can access the parent management features.
+- **Description**: As an administrator, I want to securely log into the system using multiple authentication options so that I can access the parent management features.
 - **Acceptance criteria**:
-  - Login form accepts email and password credentials
-  - System validates credentials against encrypted database storage
+  - Clerk authentication supports email/password, Google, and GitHub sign-in
+  - Multi-factor authentication available for enhanced security
   - Successful authentication redirects to role-appropriate dashboard
-  - Failed authentication displays clear error messages
-  - Session management maintains login state across browser sessions
+  - Failed authentication displays clear error messages with Clerk's UI
+  - Session management maintains login state with automatic refresh
 
 ### 10.2 Parent profile creation and management
 - **ID**: US-002
