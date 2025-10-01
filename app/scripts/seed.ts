@@ -333,7 +333,7 @@ async function main() {
                 body: template.body,
                 category: template.category,
                 channel: template.channel,
-                variables: template.variables,
+                variables: template.variables.split(","),
                 usageCount: Math.floor(Math.random() * 50) // Random usage count for demo
             }
         })
