@@ -44,6 +44,8 @@ model User {
     image         String?
     password      String?
     role          String    @default("admin")
+    resetToken    String?   @unique
+    resetTokenExpiry DateTime?
     accounts      Account[]
     sessions      Session[]
     createdAt     DateTime  @default(now())
